@@ -1,0 +1,86 @@
+{
+  "name": "check-warnings",
+  "description": "A puzzle whose solution does not reach the target produces a warning diagnostic (severity is explicit and distinct from errors).",
+  "scope": "semantics",
+  "steps": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "lpp/initialize",
+        "params": { "protocolVersion": "1.0" }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "1.0",
+          "serverInfo": { "name": "lpp-mock-provider", "version": "0.1.0" },
+          "languages": [{ "id": "x-demo-lang", "extensions": ["xdl"] }],
+          "capabilities": {
+            "check": true,
+            "compile": true,
+            "reconstruct": true,
+            "symbols": true,
+            "definition": true,
+            "references": true,
+            "rename": true,
+            "editValidation": true
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "lpp/check",
+        "params": {
+          "documents": {
+            "file:///project/puzzle.xdl": {
+              "uri": "file:///project/puzzle.xdl",
+              "languageId": "x-demo-lang",
+              "version": 3,
+              "text": "puzzle warm {\n  target = 42\n  start = 10\n  ops {\n    double: x => x * 2\n    plus1: x => x + 1\n  }\n  solution = [ double, double, plus1 ]\n}"
+            }
+          }
+        }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "documents": [
+            {
+              "uri": "file:///project/puzzle.xdl",
+              "version": 3,
+              "diagnostics": [
+                {
+                  "range": { "start": { "line": 7, "character": 13 }, "end": { "line": 7, "character": 38 } },
+                  "severity": "warning",
+                  "code": "x-demo/target-not-reached",
+                  "message": "solution does not reach target: expected 42, reached 41",
+                  "source": "x-demo-lang"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "lpp/shutdown",
+        "params": {}
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": null
+      }
+    }
+  ],
+  "expectExitCode": 0
+}
