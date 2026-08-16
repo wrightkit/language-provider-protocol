@@ -1,0 +1,58 @@
+{
+  "name": "batch-not-supported",
+  "description": "Batch messages are not supported in LPP v1: an array message is answered with the standard JSON-RPC -32600 error (id null).",
+  "scope": "protocol",
+  "steps": [
+    {
+      "request": [
+        { "jsonrpc": "2.0", "id": 1, "method": "lpp/initialize", "params": { "protocolVersion": "1.0" } }
+      ],
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": null,
+        "error": { "code": -32600, "message": "Invalid Request" }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "lpp/initialize",
+        "params": { "protocolVersion": "1.0" }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "1.0",
+          "serverInfo": { "name": "lpp-mock-provider", "version": "0.1.0" },
+          "languages": [{ "id": "x-demo-lang", "extensions": ["xdl"] }],
+          "capabilities": {
+            "check": true,
+            "compile": true,
+            "reconstruct": true,
+            "symbols": true,
+            "definition": true,
+            "references": true,
+            "rename": true,
+            "editValidation": true
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "lpp/shutdown",
+        "params": {}
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": null
+      }
+    }
+  ],
+  "expectExitCode": 0
+}

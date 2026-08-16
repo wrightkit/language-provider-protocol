@@ -1,0 +1,78 @@
+{
+  "name": "reconstruct-unknown-format",
+  "description": "A well-formed artifact in an unsupported format is a structured refusal, not an error.",
+  "scope": "protocol",
+  "steps": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "lpp/initialize",
+        "params": { "protocolVersion": "1.0" }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "1.0",
+          "serverInfo": { "name": "lpp-mock-provider", "version": "0.1.0" },
+          "languages": [{ "id": "x-demo-lang", "extensions": ["xdl"] }],
+          "capabilities": {
+            "check": true,
+            "compile": true,
+            "reconstruct": true,
+            "symbols": true,
+            "definition": true,
+            "references": true,
+            "rename": true,
+            "editValidation": true
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "lpp/reconstruct",
+        "params": {
+          "artifact": {
+            "format": "x-demo/other-v9",
+            "content": "{}"
+          }
+        }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "error": {
+          "code": -32000,
+          "message": "artifact format not supported",
+          "data": {
+            "lpp": {
+              "kind": "refusal",
+              "details": {
+                "refusalCode": "reconstruct.artifactFormatUnsupported",
+                "format": "x-demo/other-v9"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "lpp/shutdown",
+        "params": {}
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": null
+      }
+    }
+  ],
+  "expectExitCode": 0
+}

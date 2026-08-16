@@ -1,0 +1,94 @@
+{
+  "name": "compile-errors",
+  "description": "Compiling a broken puzzle reports the error diagnostics and returns a null artifact: the artifact is only produced when there are no errors.",
+  "scope": "semantics",
+  "steps": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "lpp/initialize",
+        "params": { "protocolVersion": "1.0" }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "1.0",
+          "serverInfo": { "name": "lpp-mock-provider", "version": "0.1.0" },
+          "languages": [{ "id": "x-demo-lang", "extensions": ["xdl"] }],
+          "capabilities": {
+            "check": true,
+            "compile": true,
+            "reconstruct": true,
+            "symbols": true,
+            "definition": true,
+            "references": true,
+            "rename": true,
+            "editValidation": true
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "lpp/compile",
+        "params": {
+          "documents": {
+            "file:///project/puzzle.xdl": {
+              "uri": "file:///project/puzzle.xdl",
+              "languageId": "x-demo-lang",
+              "version": 3,
+              "text": "puzzle broken {\n  target = 40\n  start = 10\n  ops {\n    double: x => x * 2\n    double: x => x + 1\n  }\n  solution = [ double, double, triple ]\n}"
+            }
+          }
+        }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "diagnostics": [
+            {
+              "uri": "file:///project/puzzle.xdl",
+              "version": 3,
+              "diagnostics": [
+                {
+                  "range": { "start": { "line": 5, "character": 4 }, "end": { "line": 5, "character": 10 } },
+                  "severity": "error",
+                  "code": "x-demo/duplicate-op",
+                  "message": "duplicate op name 'double'",
+                  "source": "x-demo-lang"
+                },
+                {
+                  "range": { "start": { "line": 7, "character": 31 }, "end": { "line": 7, "character": 37 } },
+                  "severity": "error",
+                  "code": "x-demo/unresolved-op",
+                  "message": "unresolved op reference 'triple'",
+                  "source": "x-demo-lang"
+                }
+              ]
+            }
+          ],
+          "artifact": null
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "lpp/shutdown",
+        "params": {}
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": null
+      }
+    }
+  ],
+  "expectExitCode": 0
+}

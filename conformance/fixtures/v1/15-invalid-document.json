@@ -1,0 +1,92 @@
+{
+  "name": "invalid-document",
+  "description": "Document-level invariants are explicit: a negative version is an invalidDocument error, and an empty document set is a valid (empty) result.",
+  "scope": "protocol",
+  "steps": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "lpp/initialize",
+        "params": { "protocolVersion": "1.0" }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "1.0",
+          "serverInfo": { "name": "lpp-mock-provider", "version": "0.1.0" },
+          "languages": [{ "id": "x-demo-lang", "extensions": ["xdl"] }],
+          "capabilities": {
+            "check": true,
+            "compile": true,
+            "reconstruct": true,
+            "symbols": true,
+            "definition": true,
+            "references": true,
+            "rename": true,
+            "editValidation": true
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "lpp/check",
+        "params": { "documents": {} }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": { "documents": [] }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "lpp/check",
+        "params": {
+          "documents": {
+            "file:///project/puzzle.xdl": {
+              "uri": "file:///project/puzzle.xdl",
+              "languageId": "x-demo-lang",
+              "version": -1,
+              "text": "puzzle clean {\n  target = 40\n}"
+            }
+          }
+        }
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "error": {
+          "code": -32000,
+          "message": "document version must be a non-negative integer",
+          "data": {
+            "lpp": {
+              "kind": "invalidDocument",
+              "details": { "uri": "file:///project/puzzle.xdl", "reason": "invalidVersion" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "lpp/shutdown",
+        "params": {}
+      },
+      "expectResponse": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": null
+      }
+    }
+  ],
+  "expectExitCode": 0
+}
