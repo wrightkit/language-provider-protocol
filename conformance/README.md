@@ -1,27 +1,18 @@
 # LPP v1 Conformance Suite
 
-This directory contains the machine-testable evidence for the Language
-Provider Protocol v1 wire contract (see `../spec/lpp-v1.md`).
+This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract (see [`../spec/lpp-v1.md`](../spec/lpp-v1.md)).
 
 ## Layout
 
 ```text
-fixtures/v1/          Versioned JSON-RPC message fixtures (normative evidence)
-mock-provider/        Reference provider for the "x-demo-lang" puzzle/equation language (Rust, stdio binary)
+fixtures/v1/          Versioned JSON-RPC message fixtures (normative test cases)
+mock-provider/        Reference provider for the "x-demo-lang" equation DSL (Rust, stdio binary)
 runner/               Conformance runner that replays fixtures against any provider binary
 ```
 
-* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario is a
-  session: a list of request/response steps, optional provider arguments, and
-  the expected provider exit code. Responses are compared exactly (after JSON
-  parsing, so key order does not matter).
-* **Mock provider** (`mock-provider/`): a small Rust binary implementing the
-  full LPP v1 surface for a deliberately non-OPY/DEL language. It is spawnable
-  as a stdio process, so client-side integration (for example the Wright LPP
-  client in wrightkit/wright#142) can use it end-to-end.
-* **Runner** (`runner/`): spawns a fresh provider process per scenario, writes
-  each request line, reads the response line, compares it to the expected
-  response, closes stdin, and checks the exit code.
+* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter.
+* **Mock provider** (`mock-provider/`): a small Rust binary implementing the full LPP v1 surface for a demonstration language distinct from OPY and OSTW. It runs over stdio so clients (like the Wright LPP client in wrightkit/wright#142) can test against it directly.
+* **Runner** (`runner/`): spawns a fresh provider process per scenario, feeds requests over stdin, validates stdout responses against expectations, and checks the process exit code.
 
 ## Running the suite
 
@@ -31,9 +22,7 @@ cargo build --release --bin lpp-mock-provider --bin lpp-conformance-runner
 ./target/release/lpp-conformance-runner --provider ./target/release/lpp-mock-provider --fixtures conformance/fixtures/v1
 ```
 
-The `--validate-only` mode checks that every fixture is structurally valid
-without spawning a provider. The full run reports one line per scenario and
-exits non-zero if any scenario fails.
+`--validate-only` checks that fixtures parse and follow the scenario schema without spawning a provider. The full run prints one line per scenario and exits with status 1 if any scenario fails.
 
 Runner options:
 
@@ -46,21 +35,14 @@ Runner options:
 
 ## Verifying a provider written in any language
 
-LPP deliberately has no Rust dependency on the wire: any provider that reads
-newline-delimited JSON from stdin and writes JSON-RPC 2.0 responses to stdout
-can be verified with this suite.
+LPP has no wire dependency on Rust. Any provider that reads newline-delimited JSON from standard input and writes JSON-RPC 2.0 responses to standard output can run this suite.
 
 1. Build your provider as a stdio binary.
 2. Run the protocol-scope scenarios:
    `lpp-conformance-runner --provider <your-provider> --scope protocol`
-3. The semantic scenarios encode the reference language `x-demo-lang` (an
-   equation-puzzle DSL). A provider for a different language passes those by
-   replacing the document texts and artifact contents with its own language's
-   inputs while keeping the protocol-level expectations unchanged. The
-   x-demo-lang scenarios serve as the reference for writing such fixtures.
+3. The semantic scenarios use `x-demo-lang` (an equation-puzzle DSL). To test a provider for another language, substitute your own language source texts and artifact payloads while keeping the protocol envelope and message sequence.
 
-Conformance proves wire-contract conformance only: it does not prove Workshop
-semantic correctness, game runtime behavior, or performance.
+Passing this suite verifies wire protocol conformance. It does not check Workshop engine correctness or runtime performance.
 
 ## Scenario file format
 

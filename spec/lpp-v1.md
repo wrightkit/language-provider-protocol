@@ -1,4 +1,4 @@
-# Language Provider Protocol (LPP) — Version 1.0
+# Language Provider Protocol (LPP): Version 1.0
 
 | | |
 | --- | --- |
@@ -655,7 +655,7 @@ Find all references to the symbol at a position within the document.
 ## 15. lpp/rename
 
 Compute source edits for a semantic rename of the symbol at a position. The
-result is a set of source-oriented text edits — the client applies them to its
+result is a set of source-oriented text edits: the client applies them to its
 own document texts. LPP v1 defines no "rewrite the whole file from an AST"
 mode; the provider MUST NOT return serialized ASTs or IR in place of edits.
 
@@ -911,14 +911,14 @@ clients MUST NOT parse `message`.
 The conformance suite in `conformance/` is the normative evidence for the wire
 contract:
 
-* `conformance/fixtures/v1/` — versioned JSON-RPC message fixtures covering
+* `conformance/fixtures/v1/`: versioned JSON-RPC message fixtures covering
   initialization, capability negotiation, diagnostics, check, compile,
   reconstruct, symbols, definition, references, rename, edit validation,
   errors/refusals, protocol mismatch, malformed messages, and shutdown.
-* `conformance/runner/` — a runner that replays fixtures against any provider
+* `conformance/runner/`: a runner that replays fixtures against any provider
   binary and compares responses exactly.
-* `conformance/mock-provider/` — the reference provider for the deliberately
-  non-OPY/DEL language `x-demo-lang` (a puzzle/equation DSL). The mock is
+* `conformance/mock-provider/`: the reference provider for the demonstration
+  language `x-demo-lang` (a puzzle/equation DSL). The mock is
   spawnable as a stdio binary so client-side integration can use it
   end-to-end.
 
@@ -933,8 +933,8 @@ Methods:
 
 | Method | Capability | Params | Result |
 | --- | --- | --- | --- |
-| `lpp/initialize` | — | `{ protocolVersion, clientInfo? }` | `{ protocolVersion, serverInfo, languages, capabilities }` |
-| `lpp/shutdown` | — | `{}` | `null` |
+| `lpp/initialize` | none | `{ protocolVersion, clientInfo? }` | `{ protocolVersion, serverInfo, languages, capabilities }` |
+| `lpp/shutdown` | none | `{}` | `null` |
 | `lpp/check` | `check` | `{ documents, projectRoot? }` | `{ documents: [{ uri, version, diagnostics }] }` |
 | `lpp/compile` | `compile` | `{ documents, projectRoot? }` | `{ diagnostics: [{ uri, version, diagnostics }], artifact }` |
 | `lpp/reconstruct` | `reconstruct` | `{ artifact }` | `{ source, uri? }` |

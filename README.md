@@ -1,22 +1,13 @@
 # Language Provider Protocol
 
-A neutral, versioned protocol contract between tooling clients and long-running
-language provider processes, owned as a standalone contract inside the
-WrightKit ecosystem.
+The Language Provider Protocol (LPP) is a versioned protocol between tooling clients and long-running language provider processes in the WrightKit ecosystem.
 
-The Language Provider Protocol (LPP) defines how a client (for example the
-Wright CLI, language services, or agent tooling) talks to a provider process
-that understands one source language (OPY, OSTW, or any third-party language)
-without the client knowing anything about that language's compiler internals.
-The protocol carries source text, positions, diagnostics, and source-oriented
-edits; it never exposes provider AST/HIR or Wright/workshop-rs internal IR.
+LPP defines how clients (such as the Wright CLI, language services, or agent tools) communicate with a provider process that understands a specific source language (such as OPY or OSTW). The protocol keeps clients decoupled from compiler internals: it passes source text, positions, diagnostics, and source-level edits, without exposing provider ASTs, HIR, or Wright internal representations.
 
 ## Status
 
 * Protocol version: **1.0** (specified in [`spec/lpp-v1.md`](spec/lpp-v1.md)).
-* Repository state: first published revision of the contract and conformance
-  suite. The Wright client integration that consumes this contract is tracked
-  in [wrightkit/wright#142](https://github.com/wrightkit/wright/issues/142).
+* Repository state: initial published contract and conformance suite. The Wright client integration is tracked in [wrightkit/wright#142](https://github.com/wrightkit/wright/issues/142).
 
 ## Repository layout
 
@@ -32,24 +23,14 @@ conformance/runner/          Conformance runner that replays fixtures against an
 
 ## Specification and conformance
 
-* Read the specification first: [`spec/lpp-v1.md`](spec/lpp-v1.md). It is
-  intended to be implementable by someone reading only the spec and the
-  conformance fixtures.
-* The conformance suite (fixtures + runner + mock provider) is documented in
-  [`conformance/README.md`](conformance/README.md).
+* Read [`spec/lpp-v1.md`](spec/lpp-v1.md) for the wire specification. A complete provider can be written using only the specification and the conformance fixtures.
+* See [`conformance/README.md`](conformance/README.md) for details on running the fixtures, runner, and mock provider.
 
 ## Licensing and provenance
 
-This repository is licensed under the MIT License (see [`LICENSE`](LICENSE)),
-matching the permissive license of the WrightKit `workshop-rs` core. The
-protocol contract, specification text, and conformance fixtures are intended
-to be freely reusable by any provider implementation in any language; a
-provider is not required to adopt MIT licensing for its own code.
+This repository is licensed under the MIT License (see [`LICENSE`](LICENSE)). The specification and conformance fixtures are free to use in any implementation. Providers do not need to use the MIT License for their own code.
 
-The specification was written clean-room for WrightKit. It does not copy
-implementation text from any upstream compiler or language service; upstream
-projects (for example OverPy, OSTW) serve only as external compatibility
-references in the wider ecosystem.
+The specification was written from scratch for WrightKit without copying code or text from upstream compilers or language services. Upstream projects like OverPy and OSTW serve as external compatibility references.
 
 ## Validation
 

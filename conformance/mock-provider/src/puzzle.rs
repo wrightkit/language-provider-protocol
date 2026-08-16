@@ -1182,7 +1182,7 @@ mod tests {
 
     #[test]
     fn utf16_positions_are_exact() {
-        // "puzzle αβ {" — UTF-16 units: p=0..e=5, space=6, α=7, β=8, space=9,
+        // "puzzle αβ {": UTF-16 units: p=0..e=5, space=6, α=7, β=8, space=9,
         // {=10. Bytes: α=7-8, β=9-10 (2 bytes each).
         let src = SourceText::new("puzzle αβ {\n  target = 40\n}");
         assert_eq!(
