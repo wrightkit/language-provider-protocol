@@ -19,40 +19,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.85.0
+          components: clippy, rustfmt
+          rustflags: ""
+          cache-shared-key: linux-ci
+          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: false
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy --locked --all-targets -- -D warnings
       - name: Tests
         run: cargo test --locked --workspace
-      - name: Build conformance binaries
-        run: cargo build --locked --bin lpp-mock-provider --bin lpp-conformance-runner
-      - name: Stage conformance binaries
-        run: |
-          mkdir -p target/conformance-artifact
-          cp target/debug/lpp-mock-provider target/conformance-artifact/
-          cp target/debug/lpp-conformance-runner target/conformance-artifact/
-      - name: Upload conformance binaries
-        uses: actions/upload-artifact@v7
-        with:
-          name: lpp-conformance-binaries
-          path: target/conformance-artifact/
-          if-no-files-found: error
-          retention-days: 1
 
   conformance:
-    needs: rust
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Download conformance binaries
-        uses: actions/download-artifact@v7
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          name: lpp-conformance-binaries
-          path: target/conformance-bin
-      - name: Prepare conformance binaries
-        run: chmod +x target/conformance-bin/lpp-mock-provider target/conformance-bin/lpp-conformance-runner
+          toolchain: 1.85.0
+          rustflags: ""
+          cache-shared-key: linux-ci
+          cache-save-if: false
+          cache-on-failure: false
+      - name: Build runner and mock provider
+        run: cargo build --locked --bin lpp-mock-provider --bin lpp-conformance-runner
       - name: Validate fixture structure
-        run: ./target/conformance-bin/lpp-conformance-runner --validate-only --fixtures conformance/fixtures/v1
+        run: ./target/debug/lpp-conformance-runner --validate-only --fixtures conformance/fixtures/v1
       - name: Run conformance against the mock provider
-        run: ./target/conformance-bin/lpp-conformance-runner --provider ./target/conformance-bin/lpp-mock-provider --fixtures conformance/fixtures/v1
+        run: ./target/debug/lpp-conformance-runner --provider ./target/debug/lpp-mock-provider --fixtures conformance/fixtures/v1
