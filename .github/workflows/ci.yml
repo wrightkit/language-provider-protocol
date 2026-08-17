@@ -20,13 +20,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.85.0
           components: clippy, rustfmt
-          rustflags: ""
-          cache-shared-key: linux-ci
-          cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: linux-ci
+          cache-targets: true
+          cache-all-crates: false
+          cache-workspace-crates: false
+          cache-bin: false
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: false
       - name: Format
         run: cargo fmt --all --check
@@ -40,12 +46,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.85.0
-          rustflags: ""
-          cache-shared-key: linux-ci
-          cache-save-if: false
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: linux-ci
+          cache-targets: true
+          cache-all-crates: false
+          cache-workspace-crates: false
+          cache-bin: false
+          save-if: false
           cache-on-failure: false
       - name: Build runner and mock provider
         run: cargo build --locked --bin lpp-mock-provider --bin lpp-conformance-runner
