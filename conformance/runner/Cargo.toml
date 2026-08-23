@@ -7,8 +7,8 @@ license.workspace = true
 description = "Replays LPP v1 conformance fixtures against any provider binary"
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 
 [lints]
 workspace = true
