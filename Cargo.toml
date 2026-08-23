@@ -9,6 +9,10 @@ rust-version = "1.85.0"
 license = "MIT"
 repository = "https://github.com/wrightkit/language-provider-protocol"
 
+[workspace.dependencies]
+serde = "1"
+serde_json = "1"
+
 [workspace.lints.rust]
 # Unsafe operations inside an unsafe function still need an explicit block so
 # the unsafe surface and its invariants remain visible at the operation site.
