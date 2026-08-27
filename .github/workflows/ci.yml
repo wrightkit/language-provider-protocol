@@ -16,32 +16,14 @@ permissions:
 
 jobs:
   rust:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.85.0
-          components: clippy, rustfmt
-      - name: Restore Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: linux-ci
-          cache-targets: true
-          cache-all-crates: false
-          cache-workspace-crates: false
-          cache-bin: false
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-          cache-on-failure: false
-      - name: Format
-        run: cargo fmt --all --check
-      - name: Clippy
-        run: cargo clippy --locked --all-targets -- -D warnings
-      - name: Tests
-        run: cargo test --locked --workspace
+    uses: wrightkit/.github/.github/workflows/rust-quality.yml@19ea0a318d6a1ef626321373f87ff8d59b5a46ae
+    with:
+      toolchain: 1.85.0
+      all-targets: true
+      cache-shared-key: linux-ci
 
   conformance:
+    needs: rust
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
