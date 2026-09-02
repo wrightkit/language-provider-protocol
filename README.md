@@ -34,14 +34,12 @@ its frontend, compiler, reconstruction, or Workshop integration internally.
 - Repository state: initial published contract and conformance suite.
 - Wright is a client/consumer of the protocol; LPP is not a dependency from the
   language implementation back into Wright tooling internals.
-- Repository releases use SemVer GitHub tags and releases; see [`RELEASE.md`](RELEASE.md).
 
 ## Repository layout
 
 ```text
 AGENTS.md                    Repository ownership, routing, and validation rules
 LICENSE                      MIT License
-RELEASE.md                   Release identity and versioning contract
 spec/lpp-v1.md               Normative LPP v1 specification
 conformance/README.md        Provider conformance workflow
 conformance/fixtures/v1/     Versioned JSON-RPC message fixtures
