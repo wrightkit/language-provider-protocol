@@ -847,14 +847,11 @@ fn documents_for_request(
     let DocsParams {
         documents,
         entry,
-        project_root,
+        project_root: _,
     } = params;
     match (documents, entry) {
         (Some(documents), None) => Ok((documents, None)),
         (None, Some(entry)) => {
-            if project_root.is_some() {
-                return Err(HandlerError::Std(-32602, "Invalid params"));
-            }
             if server.protocol_version.as_deref() != Some(PROTOCOL_VERSION_1_1) {
                 return Err(HandlerError::Std(-32602, "Invalid params"));
             }

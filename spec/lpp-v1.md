@@ -452,6 +452,9 @@ Document-scoped methods share this parameter shape:
 In LPP 1.1, `lpp/check` and `lpp/compile` accept either `documents` or
 `entry`, but not both. An `entry` request is available only when the provider
 accepted protocol version `1.1` and advertised `projectLoading: true`.
+The optional `projectRoot` field remains legal and is informational; the
+provider accepts it but determines the effective project root and source
+closure from the entry and the source language's rules.
 
 ```json
 {
@@ -1019,8 +1022,8 @@ Methods:
 | --- | --- | --- | --- |
 | `lpp/initialize` | none | `{ protocolVersion, clientInfo? }` | `{ protocolVersion, serverInfo, languages, capabilities }` |
 | `lpp/shutdown` | none | `{}` | `null` |
-| `lpp/check` | `check` or `projectLoading` (for LPP 1.1 `entry`) | `{ documents, projectRoot? }` or `{ entry }` | `{ documents: [{ uri, version, diagnostics }] }` |
-| `lpp/compile` | `compile` or `projectLoading` (for LPP 1.1 `entry`) | `{ documents, projectRoot? }` or `{ entry }` | `{ diagnostics: [{ uri, version, diagnostics }], artifact }` |
+| `lpp/check` | `check`; plus `projectLoading` for an LPP 1.1 `entry` request | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ documents: [{ uri, version, diagnostics }] }` |
+| `lpp/compile` | `compile`; plus `projectLoading` for an LPP 1.1 `entry` request | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ diagnostics: [{ uri, version, diagnostics }], artifact }` |
 | `lpp/reconstruct` | `reconstruct` | `{ artifact }` | `{ source, uri? }` |
 | `lpp/symbols` | `symbols` | `{ documents, projectRoot? }` | `{ documents: [{ uri, version, symbols }] }` |
 | `lpp/definition` | `definition` | `{ document, position }` | `{ locations }` |
