@@ -12,6 +12,7 @@ mod puzzle;
 
 use std::collections::HashMap;
 use std::io::{self, BufRead, BufWriter, Write};
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -21,7 +22,8 @@ use puzzle::{
     is_valid_identifier, parse_document, reconstruct_source, symbol_at, validate_edits,
 };
 
-const PROTOCOL_VERSION: &str = "1.0";
+const DEFAULT_PROTOCOL_VERSION: &str = "1.0";
+const PROTOCOL_VERSION_1_1: &str = "1.1";
 const SERVER_NAME: &str = "lpp-mock-provider";
 const LANGUAGE_ID: &str = "x-demo-lang";
 const LANGUAGE_EXTENSIONS: [&str; 1] = ["xdl"];
@@ -36,6 +38,7 @@ struct Capabilities {
     references: bool,
     rename: bool,
     edit_validation: bool,
+    project_loading: bool,
 }
 
 impl Capabilities {
@@ -49,6 +52,7 @@ impl Capabilities {
             references: true,
             rename: true,
             edit_validation: true,
+            project_loading: true,
         }
     }
 
@@ -62,6 +66,7 @@ impl Capabilities {
             "references" => &mut self.references,
             "rename" => &mut self.rename,
             "editValidation" => &mut self.edit_validation,
+            "projectLoading" => &mut self.project_loading,
             _ => return false,
         };
         *field = false;
@@ -78,12 +83,13 @@ impl Capabilities {
             "references" => self.references,
             "rename" => self.rename,
             "editValidation" => self.edit_validation,
+            "projectLoading" => self.project_loading,
             _ => false,
         }
     }
 
-    fn to_json(self) -> Value {
-        json!({
+    fn to_json(self, protocol_version: &str) -> Value {
+        let mut capabilities = json!({
             "check": self.check,
             "compile": self.compile,
             "reconstruct": self.reconstruct,
@@ -92,7 +98,11 @@ impl Capabilities {
             "references": self.references,
             "rename": self.rename,
             "editValidation": self.edit_validation,
-        })
+        });
+        if protocol_version == PROTOCOL_VERSION_1_1 {
+            capabilities["projectLoading"] = json!(self.project_loading);
+        }
+        capabilities
     }
 }
 
@@ -134,6 +144,14 @@ struct InitParams {
     client_info: Option<ClientInfo>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectEntry {
+    uri: String,
+    language_id: String,
+    version: i64,
+}
+
 #[allow(dead_code)]
 #[derive(Deserialize)]
 struct ClientInfo {
@@ -160,7 +178,8 @@ struct Artifact {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct DocsParams {
-    documents: HashMap<String, Document>,
+    documents: Option<HashMap<String, Document>>,
+    entry: Option<ProjectEntry>,
     #[allow(dead_code)]
     project_root: Option<String>,
 }
@@ -214,11 +233,13 @@ struct WireTextEdit {
 struct Server {
     initialized: bool,
     exiting: bool,
+    protocol_version: Option<String>,
+    supported_protocol_version: String,
     caps: Capabilities,
 }
 
 fn main() {
-    let caps = parse_args();
+    let (supported_protocol_version, caps) = parse_args();
     let stdin = io::stdin();
     let mut reader = stdin.lock();
     let stdout = io::stdout();
@@ -226,6 +247,8 @@ fn main() {
     let mut server = Server {
         initialized: false,
         exiting: false,
+        protocol_version: None,
+        supported_protocol_version,
         caps,
     };
     let mut line = String::new();
@@ -254,12 +277,25 @@ fn main() {
     }
 }
 
-fn parse_args() -> Capabilities {
+fn parse_args() -> (String, Capabilities) {
     let mut caps = Capabilities::all();
+    let mut protocol_version = DEFAULT_PROTOCOL_VERSION.to_string();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            "--protocol-version" => {
+                i += 1;
+                let Some(version) = args.get(i) else {
+                    eprintln!("lpp-mock-provider: --protocol-version requires a version");
+                    std::process::exit(2);
+                };
+                if version != DEFAULT_PROTOCOL_VERSION && version != PROTOCOL_VERSION_1_1 {
+                    eprintln!("lpp-mock-provider: unsupported protocol version '{version}'");
+                    std::process::exit(2);
+                }
+                protocol_version = version.clone();
+            }
             "--without" => {
                 i += 1;
                 let Some(list) = args.get(i) else {
@@ -282,7 +318,7 @@ fn parse_args() -> Capabilities {
         }
         i += 1;
     }
-    caps
+    (protocol_version, caps)
 }
 
 impl Server {
@@ -339,19 +375,22 @@ impl Server {
             Ok(params) => params,
             Err(_) => return std_error(id.clone(), -32602, "Invalid params"),
         };
-        if params.protocol_version != PROTOCOL_VERSION {
+        if params.protocol_version != self.supported_protocol_version {
             return lpp_error(
                 id.clone(),
                 "protocolVersionMismatch",
-                json!({ "supportedProtocolVersions": [PROTOCOL_VERSION] }),
+                json!({
+                    "supportedProtocolVersions": [self.supported_protocol_version]
+                }),
                 format!("unsupported protocol version {}", params.protocol_version),
             );
         }
+        self.protocol_version = Some(params.protocol_version.clone());
         self.initialized = true;
         ok(
             id.clone(),
             json!({
-                "protocolVersion": PROTOCOL_VERSION,
+                "protocolVersion": params.protocol_version,
                 "serverInfo": {
                     "name": SERVER_NAME,
                     "version": env!("CARGO_PKG_VERSION"),
@@ -359,7 +398,9 @@ impl Server {
                 "languages": [
                     { "id": LANGUAGE_ID, "extensions": LANGUAGE_EXTENSIONS },
                 ],
-                "capabilities": self.caps.to_json(),
+                "capabilities": self
+                    .caps
+                    .to_json(self.protocol_version.as_deref().expect("initialized")),
             }),
         )
     }
@@ -421,9 +462,10 @@ impl Server {
 
     fn check(&self, params: Value) -> Result<Value, HandlerError> {
         let params: DocsParams = parse_params(params)?;
+        let (documents_set, _) = documents_for_request(self, params, "lpp/check")?;
         let mut documents = Vec::new();
-        for uri in &sorted_keys(&params.documents) {
-            let doc = &params.documents[uri];
+        for uri in &sorted_keys(&documents_set) {
+            let doc = &documents_set[uri];
             check_document(doc)?;
             let parsed = parse_document(&doc.text);
             documents.push(json!({
@@ -437,17 +479,33 @@ impl Server {
 
     fn compile(&self, params: Value) -> Result<Value, HandlerError> {
         let params: DocsParams = parse_params(params)?;
-        if params.documents.len() != 1 {
+        let (documents_set, entry_uri) = documents_for_request(self, params, "lpp/compile")?;
+        if entry_uri.is_none() && documents_set.len() != 1 {
             return Err(HandlerError::refusal(
                 "compile.requiresSingleDocument",
                 json!({}),
                 "compile requires exactly one document",
             ));
         }
-        let doc = params.documents.values().next().expect("len == 1");
+        let doc = match entry_uri {
+            Some(uri) => documents_set.get(&uri).expect("loaded entry is present"),
+            None => documents_set.values().next().expect("len == 1"),
+        };
         check_document(doc)?;
         let parsed = parse_document(&doc.text);
-        let has_errors = parsed.diagnostics.iter().any(|d| d.severity == "error");
+        let mut diagnostics = Vec::new();
+        let mut has_errors = false;
+        for uri in &sorted_keys(&documents_set) {
+            let source = &documents_set[uri];
+            check_document(source)?;
+            let parsed = parse_document(&source.text);
+            has_errors |= parsed.diagnostics.iter().any(|d| d.severity == "error");
+            diagnostics.push(json!({
+                "uri": source.uri,
+                "version": source.version,
+                "diagnostics": parsed.diagnostics,
+            }));
+        }
         let artifact = if has_errors {
             Value::Null
         } else {
@@ -458,11 +516,7 @@ impl Server {
             json!({ "format": ARTIFACT_FORMAT, "content": content })
         };
         Ok(json!({
-            "diagnostics": [{
-                "uri": doc.uri,
-                "version": doc.version,
-                "diagnostics": parsed.diagnostics,
-            }],
+            "diagnostics": diagnostics,
             "artifact": artifact,
         }))
     }
@@ -488,9 +542,15 @@ impl Server {
 
     fn symbols(&self, params: Value) -> Result<Value, HandlerError> {
         let params: DocsParams = parse_params(params)?;
+        let Some(documents_set) = params.documents else {
+            return Err(HandlerError::Std(-32602, "Invalid params"));
+        };
+        if params.entry.is_some() {
+            return Err(HandlerError::Std(-32602, "Invalid params"));
+        }
         let mut documents = Vec::new();
-        for uri in &sorted_keys(&params.documents) {
-            let doc = &params.documents[uri];
+        for uri in &sorted_keys(&documents_set) {
+            let doc = &documents_set[uri];
             check_document(doc)?;
             let parsed = parse_document(&doc.text);
             let symbols = parsed
@@ -777,6 +837,201 @@ enum RenameTarget {
 
 fn parse_params<T: for<'de> Deserialize<'de>>(params: Value) -> Result<T, HandlerError> {
     serde_json::from_value(params).map_err(|_| HandlerError::Std(-32602, "Invalid params"))
+}
+
+fn documents_for_request(
+    server: &Server,
+    params: DocsParams,
+    method: &str,
+) -> Result<(HashMap<String, Document>, Option<String>), HandlerError> {
+    let DocsParams {
+        documents,
+        entry,
+        project_root: _,
+    } = params;
+    match (documents, entry) {
+        (Some(documents), None) => Ok((documents, None)),
+        (None, Some(entry)) => {
+            if server.protocol_version.as_deref() != Some(PROTOCOL_VERSION_1_1) {
+                return Err(HandlerError::Std(-32602, "Invalid params"));
+            }
+            if !server.caps.project_loading {
+                return Err(HandlerError::Lpp(
+                    "capabilityUnavailable",
+                    json!({ "capability": "projectLoading", "method": method }),
+                    "capability 'projectLoading' is not available".to_string(),
+                ));
+            }
+            if entry.version < 0 {
+                return Err(HandlerError::Lpp(
+                    "invalidEntry",
+                    json!({ "entryUri": entry.uri, "reason": "invalidVersion" }),
+                    "project entry version must be a non-negative integer".to_string(),
+                ));
+            }
+            let (documents, canonical_entry_uri) = load_project(&entry)?;
+            Ok((documents, Some(canonical_entry_uri)))
+        }
+        _ => Err(HandlerError::Std(-32602, "Invalid params")),
+    }
+}
+
+fn load_project(entry: &ProjectEntry) -> Result<(HashMap<String, Document>, String), HandlerError> {
+    if entry.language_id != LANGUAGE_ID {
+        return Err(HandlerError::Lpp(
+            "invalidEntry",
+            json!({ "entryUri": entry.uri, "reason": "unsupportedLanguage" }),
+            format!(
+                "language '{}' is not served by this provider",
+                entry.language_id
+            ),
+        ));
+    }
+    let Some(entry_path) = file_uri_to_path(&entry.uri) else {
+        return Err(HandlerError::Lpp(
+            "invalidEntry",
+            json!({ "entryUri": entry.uri, "reason": "unsupportedUri" }),
+            "project entry must be an absolute file URI".to_string(),
+        ));
+    };
+    let entry_path = std::fs::canonicalize(&entry_path).map_err(|_| {
+        HandlerError::Lpp(
+            "projectLoadFailed",
+            json!({
+                "entryUri": entry.uri,
+                "reason": "entryNotFound",
+                "uri": entry.uri,
+            }),
+            "project entry could not be loaded".to_string(),
+        )
+    })?;
+    if !entry_path.is_file() {
+        return Err(HandlerError::Lpp(
+            "projectLoadFailed",
+            json!({
+                "entryUri": entry.uri,
+                "reason": "entryNotFile",
+                "uri": entry.uri,
+            }),
+            "project entry is not a file".to_string(),
+        ));
+    }
+    let canonical_entry_uri = path_to_file_uri(&entry_path).ok_or_else(|| {
+        HandlerError::Lpp(
+            "projectLoadFailed",
+            json!({ "entryUri": entry.uri, "reason": "sourceIdentityUnavailable" }),
+            "project entry has no stable URI".to_string(),
+        )
+    })?;
+    let project_root = entry_path.parent().expect("a file has a parent");
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(project_root)
+        .map_err(|error| {
+            HandlerError::Lpp(
+                "projectLoadFailed",
+                json!({
+                    "entryUri": entry.uri,
+                    "reason": "projectDirectoryUnreadable",
+                }),
+                format!("project directory could not be read: {error}"),
+            )
+        })?
+        .filter_map(Result::ok)
+        .map(|directory_entry| directory_entry.path())
+        .filter(|path| {
+            path == &entry_path || path.extension().is_some_and(|extension| extension == "xdl")
+        })
+        .collect();
+    paths.sort();
+
+    let mut documents = HashMap::new();
+    for path in paths {
+        let path = std::fs::canonicalize(&path).map_err(|error| {
+            HandlerError::Lpp(
+                "projectLoadFailed",
+                json!({
+                    "entryUri": entry.uri,
+                    "reason": "sourceFileUnreadable",
+                }),
+                format!("source file could not be resolved: {error}"),
+            )
+        })?;
+        let uri = path_to_file_uri(&path).ok_or_else(|| {
+            HandlerError::Lpp(
+                "projectLoadFailed",
+                json!({
+                    "entryUri": entry.uri,
+                    "reason": "sourceIdentityUnavailable",
+                }),
+                "source file has no stable URI".to_string(),
+            )
+        })?;
+        let text = std::fs::read_to_string(&path).map_err(|error| {
+            HandlerError::Lpp(
+                "projectLoadFailed",
+                json!({
+                    "entryUri": entry.uri,
+                    "reason": "sourceFileUnreadable",
+                    "uri": uri,
+                }),
+                format!("source file could not be read: {error}"),
+            )
+        })?;
+        documents.insert(
+            uri.clone(),
+            Document {
+                uri,
+                language_id: LANGUAGE_ID.to_string(),
+                version: entry.version,
+                text,
+            },
+        );
+    }
+    Ok((documents, canonical_entry_uri))
+}
+
+fn file_uri_to_path(uri: &str) -> Option<PathBuf> {
+    let path = uri.strip_prefix("file:///")?;
+    Some(PathBuf::from(format!("/{}", percent_decode(path)?)))
+}
+
+fn path_to_file_uri(path: &Path) -> Option<String> {
+    let path = path.to_str()?;
+    let mut uri = String::from("file://");
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'-' | b'_' | b'.' | b'~') {
+            uri.push(byte as char);
+        } else {
+            uri.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    Some(uri)
+}
+
+fn percent_decode(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let high = bytes.get(i + 1).copied().and_then(hex_value)?;
+            let low = bytes.get(i + 2).copied().and_then(hex_value)?;
+            decoded.push(high * 16 + low);
+            i += 3;
+        } else {
+            decoded.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(decoded).ok()
+}
+
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 fn sorted_keys(map: &HashMap<String, Document>) -> Vec<String> {

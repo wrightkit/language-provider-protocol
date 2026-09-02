@@ -1,9 +1,9 @@
-# Language Provider Protocol (LPP): Version 1.0
+# Language Provider Protocol (LPP): Version 1
 
 | | |
 | --- | --- |
-| Protocol version | `1.0` |
-| Status | Normative for protocol version 1.0 |
+| Protocol versions | `1.0`, `1.1` |
+| Status | Normative for protocol major version 1 |
 | Transport | JSON-RPC 2.0 over stdio, newline-delimited framing |
 | Conformance | `conformance/fixtures/v1/` + `conformance/runner` + `conformance/mock-provider` |
 | Client integration | wrightkit/wright#142 (Wright client/runtime) |
@@ -239,10 +239,12 @@ coordinates of the original document text as received by the provider.
 }
 ```
 
-An object mapping document URI to Document. The client MUST include every
-document the request may need; the provider MUST NOT assume any document
-exists outside the set and MUST NOT return edits for documents it did not
-receive.
+An object mapping document URI to Document. For document-supplied requests, the
+client MUST include every document the request may need; the provider MUST NOT
+assume any document exists outside the set and MUST NOT return edits for
+documents it did not receive. LPP 1.1 entry-based `check` and `compile`
+requests are the explicit filesystem-loading exception defined in
+[Section 8.1](#81-entry-based-project-requests-lpp-11).
 
 ### 6.6 Diagnostic
 
@@ -293,6 +295,32 @@ receive.
 * `content`: a REQUIRED string holding the artifact payload in that format.
   The payload is UTF-8 text; LPP never interprets it.
 
+### 6.10 Project entry
+
+A project entry identifies the source file selected by the client for a
+provider-owned filesystem project load:
+
+```json
+{
+  "uri": "file:///project/main.opy",
+  "languageId": "opy",
+  "version": 7
+}
+```
+
+* `uri`: a REQUIRED absolute `file` URI. A client that starts with a local
+  path MUST resolve it to an absolute file URI before sending it.
+* `languageId`: the REQUIRED language id selected by the client. It MUST be
+  one of the languages advertised by the provider.
+* `version`: a REQUIRED non-negative integer identifying the client-selected
+  filesystem snapshot for this request. It is echoed in every source result.
+  It is not a filesystem content hash and does not provide cross-request stale
+  detection.
+
+The entry identifies the user's selected source target only. The provider
+determines the effective project root and source closure according to the
+source language's rules; the client MUST NOT infer or supply that closure.
+
 ## 7. lpp/initialize
 
 Initialization and capability negotiation. The client MUST send
@@ -314,7 +342,7 @@ Initialization and capability negotiation. The client MUST send
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocolVersion` | string | The protocol version the client wants to speak. MUST be `"1.0"` in LPP v1. |
+| `protocolVersion` | string | The protocol version the client wants to speak: `"1.0"` or `"1.1"`. |
 | `clientInfo` | object, OPTIONAL | `{ "name": string, "version": string }` identifying the client. |
 
 ### 7.2 Result
@@ -341,10 +369,10 @@ Initialization and capability negotiation. The client MUST send
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocolVersion` | string | The protocol version the provider will speak. MUST be `"1.0"` in LPP v1. |
+| `protocolVersion` | string | The protocol version the provider will speak: `"1.0"` or `"1.1"`. |
 | `serverInfo` | object | `{ "name": string, "version": string }` identifying the provider. |
 | `languages` | array | One entry per source language the provider serves. |
-| `capabilities` | object | One boolean field per capability (all eight fields are REQUIRED). |
+| `capabilities` | object | One boolean field per capability. LPP 1.0 requires the eight fields listed below; LPP 1.1 additionally requires `projectLoading`. |
 
 Each language entry: `{ "id": string, "extensions": [string] }`. `extensions`
 is the list of file extensions the provider associates with the language,
@@ -366,6 +394,7 @@ extension.
 | `references` | `lpp/references` | Find references to the symbol at a position. |
 | `rename` | `lpp/rename` | Compute source edits for a semantic rename. |
 | `editValidation` | `lpp/validateEdits` | Validate a set of source edits against a document. |
+| `projectLoading` | `lpp/check`, `lpp/compile` | Accept a client-selected entry and load its filesystem-backed source project. LPP 1.1 only. |
 
 * The provider MUST set each capability to `true` only if it fully implements
   the corresponding method(s).
@@ -374,16 +403,17 @@ extension.
   of kind `capabilityUnavailable` with `details.capability` and
   `details.method`.
 * Capabilities are independent: a provider MAY advertise any subset.
-* Capability ids are a closed set in LPP v1. New capability ids can only be
-  introduced through a new protocol version or a negotiated additive revision
-  (see [Section 19](#19-protocol-evolution-and-version-negotiation)).
+* Capability ids are a closed set for each LPP minor version. New capability
+  ids can only be introduced through a new protocol version or a negotiated
+  additive revision (see [Section 19](#19-protocol-evolution-and-version-negotiation)).
 
 ### 7.4 Protocol version mismatch
 
 If the provider does not support the client's `protocolVersion`, it MUST
 respond with an LPP error of kind `protocolVersionMismatch` whose
 `details.supportedProtocolVersions` lists every protocol version the provider
-supports:
+supports. A provider supporting LPP 1.1 SHOULD continue to support LPP 1.0
+when practical:
 
 ```json
 {
@@ -403,7 +433,8 @@ supports:
 ```
 
 The client then decides whether to terminate the session or restart with a
-supported version. LPP v1 clients MUST send `"1.0"`.
+supported version. LPP 1.0 clients MUST send `"1.0"`; clients using the
+project-loading extension MUST send `"1.1"`.
 
 ## 8. Common request parameters
 
@@ -412,8 +443,55 @@ Document-scoped methods share this parameter shape:
 | Field | Type | Methods | Description |
 | --- | --- | --- | --- |
 | `documents` | DocumentSet | `check`, `compile`, `symbols`, `rename` | The documents to operate on. |
+| `entry` | Project entry | `check`, `compile` in LPP 1.1 | Alternative to `documents`; asks the provider to load the source closure from the selected entry. |
 | `document` | Document | `definition`, `references`, `validateEdits` | The single document to operate on. |
 | `projectRoot` | string, OPTIONAL | `check`, `compile`, `symbols`, `rename` | URI identifying the project the documents belong to. Purely informational in v1; providers MUST accept and MAY use it. |
+
+### 8.1 Entry-based project requests (LPP 1.1)
+
+In LPP 1.1, `lpp/check` and `lpp/compile` accept either `documents` or
+`entry`, but not both. An `entry` request is available only when the provider
+accepted protocol version `1.1` and advertised `projectLoading: true`.
+The optional `projectRoot` field remains legal and is informational; the
+provider accepts it but determines the effective project root and source
+closure from the entry and the source language's rules.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "lpp/check",
+  "params": {
+    "entry": {
+      "uri": "file:///project/main.opy",
+      "languageId": "opy",
+      "version": 7
+    }
+  }
+}
+```
+
+The provider MUST load the entry and every additional source file required by
+the source language's project rules, then perform the requested operation on
+that complete source closure. It MUST NOT require the client to list those
+files in advance. The provider MUST read only the filesystem project
+identified by the entry and MUST NOT treat the client's working directory as a
+project root unless that is the source language's documented rule.
+
+The result uses the normal `lpp/check` or `lpp/compile` shape. It MUST include
+diagnostics for every loaded source document, including documents that contain
+no diagnostics. Every filesystem-loaded document result MUST use the entry's
+`version`; this identifies the client-selected snapshot and is not a
+filesystem content hash. The provider MUST preserve stable source identity by
+returning the canonical URI it uses for each loaded file. It MUST fail instead
+of returning a partial result when the entry or a required source file cannot
+be loaded.
+
+An entry with an unsupported URI or language produces an LPP error of kind
+`invalidEntry`. A missing or unreadable entry or required source file produces
+an LPP error of kind `projectLoadFailed`. The `details` object MUST contain
+`entryUri` and a provider-defined `reason`; a required-file failure SHOULD
+also include the affected `uri`.
 
 ## 9. lpp/check
 
@@ -462,7 +540,10 @@ analyze every document in the set and MUST report all diagnostics found.
 
 ## 10. lpp/compile
 
-Compile a document set into a single Workshop artifact.
+Compile a document set into a single Workshop artifact. In LPP 1.1, an
+entry-based request compiles the provider-loaded source closure as one unit;
+the `compile.requiresSingleDocument` refusal applies only to a
+document-supplied request that contains more than one document.
 
 ### 10.1 Request
 
@@ -848,6 +929,8 @@ All LPP-defined errors use JSON-RPC error code `-32000` and carry a structured
 | `invalidRequest` | `{ "reason": string }` | Session violations: `notInitialized`, `alreadyInitialized`, `notificationNotSupported`. |
 | `invalidLanguage` | `{ "languageId": string }` | A document's `languageId` is not served by the provider. |
 | `invalidDocument` | `{ "uri"?: string, "reason": string }` | A document is unusable (for example a negative version). |
+| `invalidEntry` | `{ "entryUri": string, "reason": string }` | A project entry has an unsupported URI or language. LPP 1.1 only. |
+| `projectLoadFailed` | `{ "entryUri": string, "reason": string, "uri"?: string }` | A filesystem-backed project entry or required source file could not be loaded. LPP 1.1 only. |
 | `invalidPosition` | `{ "uri": string, "position": Position }` | A position outside the document. |
 | `invalidArtifact` | `{ "reason": string }` | An artifact in a supported format whose content is malformed. |
 | `capabilityUnavailable` | `{ "capability": string, "method": string }` | A method was invoked whose capability was not negotiated. |
@@ -872,7 +955,8 @@ clients MUST NOT parse `message`.
 ### 19.1 Versioning scheme
 
 * Protocol versions are strings of the form `MAJOR.MINOR` (for example
-  `"1.0"`). LPP v1 is the first published version.
+  `"1.0"`). LPP 1.0 is the first published version and LPP 1.1 is an additive
+  revision of the same protocol major version.
 * `MAJOR` changes are breaking: message shapes, method semantics, or framing
   may change. A breaking change always produces a new MAJOR version, and
   clients and providers speaking different MAJOR versions are never expected
@@ -889,7 +973,8 @@ clients MUST NOT parse `message`.
 * The provider either accepts it (echoing the version in the result) or fails
   with `protocolVersionMismatch` listing `supportedProtocolVersions`.
 * A client that receives the mismatch MUST pick the highest mutually supported
-  version and restart the session, or terminate. LPP v1 defines only `"1.0"`.
+  version and restart the session, or terminate. LPP 1.1 clients MAY use the
+  `projectLoading` capability; clients that need it MUST request `"1.1"`.
 * A provider MUST support at least one of the versions it lists in
   `supportedProtocolVersions`.
 
@@ -914,7 +999,9 @@ contract:
 * `conformance/fixtures/v1/`: versioned JSON-RPC message fixtures covering
   initialization, capability negotiation, diagnostics, check, compile,
   reconstruct, symbols, definition, references, rename, edit validation,
-  errors/refusals, protocol mismatch, malformed messages, and shutdown.
+  project loading, errors/refusals, protocol mismatch, malformed messages,
+  and shutdown. The same directory covers LPP 1.0 and its LPP 1.1 additive
+  revision.
 * `conformance/runner/`: a runner that replays fixtures against any provider
   binary and compares responses exactly.
 * `conformance/mock-provider/`: the reference provider for the demonstration
@@ -935,8 +1022,8 @@ Methods:
 | --- | --- | --- | --- |
 | `lpp/initialize` | none | `{ protocolVersion, clientInfo? }` | `{ protocolVersion, serverInfo, languages, capabilities }` |
 | `lpp/shutdown` | none | `{}` | `null` |
-| `lpp/check` | `check` | `{ documents, projectRoot? }` | `{ documents: [{ uri, version, diagnostics }] }` |
-| `lpp/compile` | `compile` | `{ documents, projectRoot? }` | `{ diagnostics: [{ uri, version, diagnostics }], artifact }` |
+| `lpp/check` | `check`; plus `projectLoading` for an LPP 1.1 `entry` request | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ documents: [{ uri, version, diagnostics }] }` |
+| `lpp/compile` | `compile`; plus `projectLoading` for an LPP 1.1 `entry` request | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ diagnostics: [{ uri, version, diagnostics }], artifact }` |
 | `lpp/reconstruct` | `reconstruct` | `{ artifact }` | `{ source, uri? }` |
 | `lpp/symbols` | `symbols` | `{ documents, projectRoot? }` | `{ documents: [{ uri, version, symbols }] }` |
 | `lpp/definition` | `definition` | `{ document, position }` | `{ locations }` |
@@ -944,7 +1031,7 @@ Methods:
 | `lpp/rename` | `rename` | `{ documents, positionDocumentUri, position, newName, projectRoot? }` | `{ edits: [{ documentUri, version, textEdits }] }` |
 | `lpp/validateEdits` | `editValidation` | `{ document, edits }` | `{ valid, version, reason?, failingEditIndex? }` |
 
-Types: `Position`, `Range`, `TextEdit`, `Document`, `DocumentSet`,
+Types: `Position`, `Range`, `TextEdit`, `Document`, `DocumentSet`, `ProjectEntry`,
 `Diagnostic`, `Location`, `Symbol`, `WorkshopArtifact` (see
 [Section 6](#6-common-data-types)).
 
