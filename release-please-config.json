@@ -3,9 +3,9 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "language-provider-protocol",
       "version-file": "version.txt",
       "changelog-path": "CHANGELOG.md",
+      "versioning": "always-bump-patch",
       "include-component-in-tag": false,
       "draft": false,
       "force-tag-creation": true
