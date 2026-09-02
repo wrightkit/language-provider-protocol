@@ -1,0 +1,16 @@
+{
+  "name": "project-loading-invalid-params",
+  "description": "Entry-based requests reject ambiguous document input, malformed entry targets, and negative snapshot versions with observable errors.",
+  "scope": "protocol",
+  "providerArgs": ["--protocol-version", "1.1"],
+  "projectFiles": {"entry.xdl":""},
+  "steps": [
+    {"request":{"jsonrpc":"2.0","id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.1"}},"expectResponse":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"1.1","serverInfo":{"name":"lpp-mock-provider","version":"0.1.0"},"languages":[{"id":"x-demo-lang","extensions":["xdl"]}],"capabilities":{"check":true,"compile":true,"reconstruct":true,"symbols":true,"definition":true,"references":true,"rename":true,"editValidation":true,"projectLoading":true}}}},
+    {"request":{"jsonrpc":"2.0","id":2,"method":"lpp/check","params":{"documents":{},"entry":{"uri":"${PROJECT_URI}/entry.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"Invalid params"}}},
+    {"request":{"jsonrpc":"2.0","id":3,"method":"lpp/check","params":{}},"expectResponse":{"jsonrpc":"2.0","id":3,"error":{"code":-32602,"message":"Invalid params"}}},
+    {"request":{"jsonrpc":"2.0","id":4,"method":"lpp/check","params":{"entry":{"uri":"untitled:entry.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"jsonrpc":"2.0","id":4,"error":{"code":-32000,"message":"project entry must be an absolute file URI","data":{"lpp":{"kind":"invalidEntry","details":{"entryUri":"untitled:entry.xdl","reason":"unsupportedUri"}}}}}},
+    {"request":{"jsonrpc":"2.0","id":5,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}/entry.xdl","languageId":"x-demo-lang","version":-1}}},"expectResponse":{"jsonrpc":"2.0","id":5,"error":{"code":-32000,"message":"project entry version must be a non-negative integer","data":{"lpp":{"kind":"invalidEntry","details":{"entryUri":"${PROJECT_URI}/entry.xdl","reason":"invalidVersion"}}}}}},
+    {"request":{"jsonrpc":"2.0","id":6,"method":"lpp/shutdown","params":{}},"expectResponse":{"jsonrpc":"2.0","id":6,"result":null}}
+  ],
+  "expectExitCode": 0
+}

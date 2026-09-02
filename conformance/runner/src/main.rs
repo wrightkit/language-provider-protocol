@@ -21,6 +21,7 @@
 //! A scenario ends by closing the provider's stdin; `expectExitCode` (default
 //! 0) is checked against the provider's exit status.
 
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -44,6 +45,8 @@ struct Scenario {
     scope: String,
     #[serde(default)]
     provider_args: Vec<String>,
+    #[serde(default)]
+    project_files: Option<HashMap<String, String>>,
     steps: Vec<Step>,
     #[serde(default)]
     expect_exit_code: Option<i32>,
@@ -120,6 +123,7 @@ fn main() {
         match run_scenario(
             &scenario,
             args.provider.as_deref().expect("provider required"),
+            passed + failed,
         ) {
             Ok(()) => {
                 println!("PASS  {}", scenario.name);
@@ -204,6 +208,18 @@ fn validate_scenario(scenario: &Scenario) -> Result<(), String> {
     if scenario.steps.is_empty() {
         return Err("'steps' must be non-empty".into());
     }
+    if let Some(files) = &scenario.project_files {
+        for relative in files.keys() {
+            validate_project_path(relative)?;
+        }
+    }
+    let uses_project_uri = scenario.steps.iter().any(|step| {
+        step.request.as_ref().is_some_and(contains_project_uri)
+            || contains_project_uri(&step.expect_response)
+    });
+    if uses_project_uri && scenario.project_files.is_none() {
+        return Err("'${PROJECT_URI}' requires 'projectFiles'".into());
+    }
     if let Some(code) = scenario.expect_exit_code {
         if code < 0 {
             return Err("'expectExitCode' must be non-negative".into());
@@ -262,7 +278,8 @@ fn validate_expected(response: &Value) -> Result<(), String> {
     Ok(())
 }
 
-fn run_scenario(scenario: &Scenario, provider: &str) -> Result<(), String> {
+fn run_scenario(scenario: &Scenario, provider: &str, scenario_index: usize) -> Result<(), String> {
+    let project = materialize_project(scenario, scenario_index)?;
     let mut child = Command::new(provider)
         .args(&scenario.provider_args)
         .stdin(Stdio::piped())
@@ -293,7 +310,10 @@ fn run_scenario(scenario: &Scenario, provider: &str) -> Result<(), String> {
 
     for (i, step) in scenario.steps.iter().enumerate() {
         let request_line = match (&step.request, &step.raw_line) {
-            (Some(request), None) => serde_json::to_string(request).expect("request serializes"),
+            (Some(request), None) => {
+                let request = substitute_project_uri(request, project.as_ref());
+                serde_json::to_string(&request).expect("request serializes")
+            }
             (None, Some(raw)) => raw.clone(),
             _ => {
                 return Err(format!(
@@ -332,10 +352,11 @@ fn run_scenario(scenario: &Scenario, provider: &str) -> Result<(), String> {
         };
         let actual: Value = serde_json::from_str(&response_line)
             .map_err(|e| format!("step {i}: response is not valid JSON: {e}"))?;
-        if actual != step.expect_response {
+        let expected = substitute_project_uri(&step.expect_response, project.as_ref());
+        if actual != expected {
             return Err(format!(
                 "step {i}: response mismatch\n  expected: {}\n  actual:   {}",
-                serde_json::to_string_pretty(&step.expect_response).expect("serializes"),
+                serde_json::to_string_pretty(&expected).expect("serializes"),
                 serde_json::to_string_pretty(&actual).expect("serializes"),
             ));
         }
@@ -366,6 +387,118 @@ fn run_scenario(scenario: &Scenario, provider: &str) -> Result<(), String> {
     }
     let _ = reader_thread.join();
     Ok(())
+}
+
+struct ProjectFixture {
+    directory: PathBuf,
+    uri: String,
+}
+
+impl Drop for ProjectFixture {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.directory);
+    }
+}
+
+fn materialize_project(
+    scenario: &Scenario,
+    scenario_index: usize,
+) -> Result<Option<ProjectFixture>, String> {
+    let Some(files) = &scenario.project_files else {
+        return Ok(None);
+    };
+    let root = PathBuf::from("target/lpp-conformance-projects");
+    std::fs::create_dir_all(&root)
+        .map_err(|error| format!("cannot create project fixture root: {error}"))?;
+    let directory = root.join(format!("{}-{}", std::process::id(), scenario_index));
+    std::fs::create_dir(&directory)
+        .map_err(|error| format!("cannot create project fixture directory: {error}"))?;
+    let result = (|| {
+        for (relative, contents) in files {
+            validate_project_path(relative)?;
+            let path = directory.join(relative);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|error| format!("cannot create project fixture parent: {error}"))?;
+            }
+            std::fs::write(&path, contents)
+                .map_err(|error| format!("cannot write project fixture '{relative}': {error}"))?;
+        }
+        let directory = std::fs::canonicalize(&directory)
+            .map_err(|error| format!("cannot canonicalize project fixture: {error}"))?;
+        let uri = path_to_file_uri(&directory)?;
+        Ok((directory, uri))
+    })();
+    let (directory, uri) = match result {
+        Ok(result) => result,
+        Err(error) => {
+            let _ = std::fs::remove_dir_all(&directory);
+            return Err(error);
+        }
+    };
+    Ok(Some(ProjectFixture { directory, uri }))
+}
+
+fn validate_project_path(relative: &str) -> Result<(), String> {
+    let path = Path::new(relative);
+    if relative.is_empty()
+        || path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir | std::path::Component::RootDir
+            )
+        })
+    {
+        return Err(format!("invalid project fixture path '{relative}'"));
+    }
+    Ok(())
+}
+
+fn contains_project_uri(value: &Value) -> bool {
+    match value {
+        Value::String(text) => text.contains("${PROJECT_URI}"),
+        Value::Array(values) => values.iter().any(contains_project_uri),
+        Value::Object(object) => object.values().any(contains_project_uri),
+        _ => false,
+    }
+}
+
+fn path_to_file_uri(path: &Path) -> Result<String, String> {
+    let path = path
+        .to_str()
+        .ok_or_else(|| "project fixture path is not valid UTF-8".to_string())?;
+    let mut uri = String::from("file://");
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'-' | b'_' | b'.' | b'~') {
+            uri.push(byte as char);
+        } else {
+            uri.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    Ok(uri)
+}
+
+fn substitute_project_uri(value: &Value, project: Option<&ProjectFixture>) -> Value {
+    match value {
+        Value::String(text) => {
+            let replacement = project.map_or_else(String::new, |project| project.uri.clone());
+            Value::String(text.replace("${PROJECT_URI}", &replacement))
+        }
+        Value::Array(values) => Value::Array(
+            values
+                .iter()
+                .map(|value| substitute_project_uri(value, project))
+                .collect(),
+        ),
+        Value::Object(object) => Value::Object(
+            object
+                .iter()
+                .map(|(key, value)| (key.clone(), substitute_project_uri(value, project)))
+                .collect(),
+        ),
+        value => value.clone(),
+    }
 }
 
 fn wait_exit(child: &mut Child) -> std::process::ExitStatus {

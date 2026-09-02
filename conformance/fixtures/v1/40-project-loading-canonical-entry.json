@@ -1,0 +1,16 @@
+{
+  "name": "project-loading-canonical-entry",
+  "description": "Entry-based requests canonicalize a non-canonical absolute file URI before reporting source identities and compiling.",
+  "scope": "semantics",
+  "providerArgs": ["--protocol-version", "1.1"],
+  "projectFiles": {
+    "entry.xdl": "puzzle entry {\n  target = 2\n  start = 1\n  ops {\n    plus1: x => x + 1\n  }\n  solution = [ plus1 ]\n}\n"
+  },
+  "steps": [
+    {"request":{"jsonrpc":"2.0","id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.1"}},"expectResponse":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"1.1","serverInfo":{"name":"lpp-mock-provider","version":"0.1.0"},"languages":[{"id":"x-demo-lang","extensions":["xdl"]}],"capabilities":{"check":true,"compile":true,"reconstruct":true,"symbols":true,"definition":true,"references":true,"rename":true,"editValidation":true,"projectLoading":true}}}},
+    {"request":{"jsonrpc":"2.0","id":2,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}/./entry.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"jsonrpc":"2.0","id":2,"result":{"documents":[{"uri":"${PROJECT_URI}/entry.xdl","version":7,"diagnostics":[]}]}}},
+    {"request":{"jsonrpc":"2.0","id":3,"method":"lpp/compile","params":{"entry":{"uri":"${PROJECT_URI}/./entry.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"jsonrpc":"2.0","id":3,"result":{"diagnostics":[{"uri":"${PROJECT_URI}/entry.xdl","version":7,"diagnostics":[]}],"artifact":{"format":"x-demo/puzzle-eval-v1","content":"{\"name\":\"entry\",\"ops\":[{\"arg\":1,\"name\":\"plus1\",\"op\":\"+\"}],\"solution\":[\"plus1\"],\"start\":1,\"target\":2,\"value\":2}"}}}},
+    {"request":{"jsonrpc":"2.0","id":4,"method":"lpp/shutdown","params":{}},"expectResponse":{"jsonrpc":"2.0","id":4,"result":null}}
+  ],
+  "expectExitCode": 0
+}

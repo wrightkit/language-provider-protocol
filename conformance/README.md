@@ -1,6 +1,6 @@
 # LPP v1 Conformance Suite
 
-This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract (see [`../spec/lpp-v1.md`](../spec/lpp-v1.md)).
+This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract, including the LPP 1.1 additive project-loading revision (see [`../spec/lpp-v1.md`](../spec/lpp-v1.md)).
 
 ## Layout
 
@@ -10,7 +10,7 @@ mock-provider/        Reference provider for the "x-demo-lang" equation DSL (Rus
 runner/               Conformance runner that replays fixtures against any provider binary
 ```
 
-* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter.
+* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter. The directory contains both LPP 1.0 and LPP 1.1 scenarios.
 * **Mock provider** (`mock-provider/`): a small Rust binary implementing the full LPP v1 surface for a demonstration language distinct from OPY and OSTW. It runs over stdio so clients (like the Wright LPP client in wrightkit/wright#142) can test against it directly.
 * **Runner** (`runner/`): spawns a fresh provider process per scenario, feeds requests over stdin, validates stdout responses against expectations, and checks the process exit code.
 
@@ -52,6 +52,7 @@ Passing this suite verifies wire protocol conformance. It does not check Worksho
   "description": "What this scenario exercises",
   "scope": "protocol | semantics",
   "providerArgs": ["--without", "reconstruct"],
+  "projectFiles": { "entry.xdl": "...", "support.xdl": "..." },
   "steps": [
     {
       "request": { "jsonrpc": "2.0", "id": 1, "method": "lpp/check", "params": { } },
@@ -67,6 +68,10 @@ Passing this suite verifies wire protocol conformance. It does not check Worksho
   (diagnostics content, artifact content, symbol structure).
 * `providerArgs`: optional extra command-line arguments for the provider
   binary (used to exercise capability negotiation).
+* `projectFiles`: optional relative path/content pairs that the runner writes
+  to an isolated temporary project for entry-based project-loading scenarios.
+  `${PROJECT_URI}` in requests and expected responses is replaced with that
+  project's absolute `file:` URI.
 * Each step has exactly one of `request` (a JSON-RPC message, serialized as a
   single line) or `rawLine` (a verbatim line, used for malformed-message
   scenarios).
@@ -111,4 +116,6 @@ Semantics exercised by the fixtures:
   bounds checks, overlap detection, application, and re-parsing.
 
 The mock provider binary accepts `--without <capability>,...` to disable
-capabilities at runtime, which the capability-negotiation fixture uses.
+capabilities at runtime, which the capability-negotiation fixtures use. A
+  project-loading scenario models the x-demo project as the `.xdl` files in the
+  selected entry's directory; a real provider applies its own language rules.
