@@ -3,6 +3,7 @@
   "packages": {
     ".": {
       "release-type": "simple",
+      "initial-version": "1.1.0",
       "version-file": "version.txt",
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false,
