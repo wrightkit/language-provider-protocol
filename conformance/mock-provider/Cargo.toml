@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 description = "LPP v1 conformance mock provider for the x-demo-lang puzzle/equation language"
+publish = false
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

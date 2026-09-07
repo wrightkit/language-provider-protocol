@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 description = "Replays LPP v1 conformance fixtures against any provider binary"
+publish = false
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
