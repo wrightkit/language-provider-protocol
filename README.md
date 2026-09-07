@@ -4,13 +4,11 @@ The Language Provider Protocol (LPP) is a versioned protocol between tooling
 clients and long-running language-provider processes in the WrightKit
 ecosystem.
 
-A **provider** is a protocol role, not the product identity of a language
-repository. An independently usable language implementation such as `opy-rs`
-or `del-rs` may expose an LPP provider process so Wright, editors, agents, or
-other tooling clients can consume diagnostics, semantic queries, and validated
-source edits without sharing compiler internals. The same implementation may
-also expose its own Rust library and standalone CLI and must not require Wright
-for standalone use.
+The protocol allows independent compilers (such as `opy-rs` and `del-rs`) to
+expose diagnostics, symbol queries, and refactoring operations to tooling clients
+(such as Wright or IDE plugins) over a clean, versioned RPC interface without
+coupling their internal ASTs. Compilers remain independently usable via their own
+libraries and CLIs without depending on Wright.
 
 LPP therefore decouples tooling integration from implementation ownership:
 
@@ -54,9 +52,9 @@ conformance/runner/          Conformance runner for provider binaries
 - See [`conformance/README.md`](conformance/README.md) for the fixture runner and
   mock-provider workflow.
 
-Conformance proves that a process speaks LPP correctly. It does **not** prove
-that the underlying language implementation is semantically complete or that
-Wright supports every capability of that implementation.
+Passing conformance confirms that an implementation handles protocol messages
+correctly. It does not certify that the underlying compiler supports every
+syntax feature of the language.
 
 ## Validation
 
