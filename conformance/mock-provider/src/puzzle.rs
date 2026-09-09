@@ -1,12 +1,3 @@
-//! The `x-demo-lang` puzzle/equation language: positions, parser, and
-//! semantics.
-//!
-//! `x-demo-lang` is deliberately unlike OPY or DEL: it has no Workshop rules,
-//! actions, or settings. A document declares one equation puzzle with a start
-//! value, a target value, named arithmetic ops, and a solution that applies
-//! ops in sequence. Compiling simulates the solution and emits a puzzle
-//! evaluation sheet in the provider's own artifact format.
-
 use serde::{Deserialize, Serialize};
 
 /// LPP position: 0-based line, UTF-16 code units within the line.
@@ -32,7 +23,6 @@ pub(crate) struct Diagnostic {
     pub source: String,
 }
 
-/// A document's text with line-indexing helpers.
 pub(crate) struct SourceText<'a> {
     text: &'a str,
     line_starts: Vec<usize>,
@@ -138,7 +128,6 @@ impl<'a> SourceText<'a> {
     }
 }
 
-/// Binary arithmetic op.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum OpKind {
     Add,
@@ -197,8 +186,6 @@ impl Puzzle {
         self.ops.iter().find(|op| op.name == name)
     }
 
-    /// Simulate the solution. Returns `None` when any op is unresolved or an
-    /// arithmetic operation overflows.
     pub(crate) fn simulate(&self) -> Option<i64> {
         let mut value = self.start;
         for entry in &self.solution {
@@ -405,8 +392,6 @@ fn tokenize(text: &str) -> Vec<Token> {
                 });
             }
             other => {
-                // Unknown character: emit a single-token placeholder so the
-                // parser can report it as a syntax error.
                 tokens.push(Token {
                     kind: TokenKind::Ident(format!("<unknown:{other}>")),
                     start: i,
@@ -454,7 +439,6 @@ impl Parser<'_> {
         tok
     }
 
-    /// Skip tokens until after the next newline (line-based recovery).
     fn recover_line(&mut self) {
         while let Some(tok) = self.advance() {
             if tok.kind == TokenKind::Newline {
@@ -522,7 +506,6 @@ fn describe(tok: &Token) -> String {
     }
 }
 
-/// Parse a document. Diagnostics are appended to `diagnostics`.
 pub(crate) fn parse_document(text: &str) -> ParseOutput {
     let src = SourceText::new(text);
     let tokens = tokenize(text);
@@ -540,7 +523,6 @@ pub(crate) fn parse_document(text: &str) -> ParseOutput {
 }
 
 fn parse_top(parser: &mut Parser<'_>) -> Option<Puzzle> {
-    // Skip leading newlines.
     while matches!(parser.peek(), Some(tok) if tok.kind == TokenKind::Newline) {
         parser.advance();
     }
@@ -672,7 +654,6 @@ fn parse_top(parser: &mut Parser<'_>) -> Option<Puzzle> {
         }
     }
 
-    // Trailing content after the closing brace is an error.
     while let Some(tok) = parser.peek() {
         if tok.kind == TokenKind::Newline {
             parser.advance();
@@ -710,7 +691,6 @@ fn parse_top(parser: &mut Parser<'_>) -> Option<Puzzle> {
             .push(missing_section(puzzle.name_range, "solution"));
     }
 
-    // Duplicate op names.
     let mut seen = std::collections::HashSet::new();
     for op in &puzzle.ops {
         if !seen.insert(op.name.clone()) {
@@ -724,7 +704,6 @@ fn parse_top(parser: &mut Parser<'_>) -> Option<Puzzle> {
         }
     }
 
-    // Unresolved solution references.
     for entry in &puzzle.solution {
         if puzzle.op(&entry.name).is_none() {
             parser.diagnostics.push(Diagnostic {
@@ -737,7 +716,6 @@ fn parse_top(parser: &mut Parser<'_>) -> Option<Puzzle> {
         }
     }
 
-    // Warnings only when there are no errors.
     let has_errors = parser.diagnostics.iter().any(|d| d.severity == "error");
     if !has_errors {
         if puzzle.solution.is_empty() {
@@ -792,7 +770,6 @@ fn parse_ops(parser: &mut Parser<'_>, puzzle: &mut Puzzle) -> bool {
                 let name_tok = tok.clone();
                 parser.advance();
                 parser.expect_punct(TokenKind::Colon, "':'");
-                // The parameter name is required to be `x`.
                 if let Some(param) = parser.expect_ident() {
                     let TokenKind::Ident(param_name) = param.kind else {
                         unreachable!()
@@ -948,11 +925,9 @@ fn parse_solution(parser: &mut Parser<'_>, puzzle: &mut Puzzle) -> bool {
     }
 }
 
-/// Well-known symbol kinds of `x-demo-lang`.
 pub(crate) const KIND_PUZZLE: &str = "puzzle";
 pub(crate) const KIND_OP: &str = "op";
 
-/// A symbol resolved at a position.
 #[derive(Debug, Clone)]
 pub(crate) enum Symbol {
     Puzzle { name: String, range: Range },
@@ -968,9 +943,6 @@ impl Symbol {
     }
 }
 
-/// Resolve the symbol at a byte offset, if any. A position on a solution
-/// entry resolves to the op it names; the caller resolves the declaration
-/// from the name.
 pub(crate) fn symbol_at(src: &SourceText<'_>, puzzle: &Puzzle, byte: usize) -> Option<Symbol> {
     if src.contains_byte(puzzle.name_range, byte) {
         return Some(Symbol::Puzzle {
@@ -995,7 +967,6 @@ pub(crate) fn symbol_at(src: &SourceText<'_>, puzzle: &Puzzle, byte: usize) -> O
     None
 }
 
-/// Validate an identifier per `x-demo-lang` rules.
 pub(crate) fn is_valid_identifier(name: &str) -> bool {
     let mut chars = name.chars();
     let Some(first) = chars.next() else {
@@ -1007,7 +978,6 @@ pub(crate) fn is_valid_identifier(name: &str) -> bool {
 
 pub(crate) const ARTIFACT_FORMAT: &str = "x-demo/puzzle-eval-v1";
 
-/// Build the puzzle evaluation artifact content for a parsed puzzle.
 pub(crate) fn compile_artifact(puzzle: &Puzzle, value: i64) -> serde_json::Value {
     serde_json::json!({
         "name": puzzle.name,
@@ -1027,8 +997,6 @@ pub(crate) fn compile_artifact(puzzle: &Puzzle, value: i64) -> serde_json::Value
     })
 }
 
-/// Reconstruct canonical source text from a puzzle evaluation artifact.
-/// Returns `None` when the artifact content is malformed.
 pub(crate) fn reconstruct_source(content: &str) -> Option<String> {
     let value: serde_json::Value = serde_json::from_str(content).ok()?;
     let obj = value.as_object()?;
@@ -1220,7 +1188,6 @@ mod tests {
                 character: 9
             }
         );
-        // End of line (character 11) and beyond.
         assert!(
             src.byte_of(Position {
                 line: 0,
