@@ -1,26 +1,3 @@
-//! LPP v1 conformance runner.
-//!
-//! Replays the versioned fixture scenarios in `conformance/fixtures/v1/`
-//! against a provider binary and compares each response exactly.
-//!
-//! Usage:
-//!
-//! ```text
-//! lpp-conformance-runner --validate-only [--fixtures <dir>] [--scope <all|protocol|semantics>]
-//! lpp-conformance-runner --provider <path> [--fixtures <dir>] [--scope <all|protocol|semantics>]
-//! ```
-//!
-//! * `--validate-only` checks the structure of every scenario file without
-//!   spawning a provider.
-//! * `--provider` runs the scenarios against the given provider binary. One
-//!   fresh provider process is spawned per scenario, with the scenario's
-//!   `providerArgs` (if any).
-//! * `--scope protocol` runs only scenarios with `"scope": "protocol"`;
-//!   `--scope semantics` runs only scenarios with `"scope": "semantics"`.
-//!
-//! A scenario ends by closing the provider's stdin; `expectExitCode` (default
-//! 0) is checked against the provider's exit status.
-
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -39,7 +16,6 @@ const EXIT_TIMEOUT: Duration = Duration::from_secs(10);
 #[serde(rename_all = "camelCase")]
 struct Scenario {
     name: String,
-    /// Human-readable context for the scenario; informational only.
     #[allow(dead_code)]
     description: Option<String>,
     scope: String,
@@ -55,9 +31,7 @@ struct Scenario {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Step {
-    /// A normal JSON-RPC request, serialized and written as one line.
     request: Option<Value>,
-    /// A raw line written verbatim (for malformed-message scenarios).
     #[serde(default)]
     raw_line: Option<String>,
     expect_response: Value,
@@ -323,7 +297,6 @@ fn run_scenario(scenario: &Scenario, provider: &str, scenario_index: usize) -> R
         };
         let mut writer = BufWriter::new(&mut stdin);
         if writeln!(writer, "{request_line}").is_err() {
-            // The provider exited before reading the request.
             let status = wait_exit(&mut child);
             return Err(format!(
                 "step {i}: provider exited before reading the request (exit status {status:?})"
@@ -362,7 +335,6 @@ fn run_scenario(scenario: &Scenario, provider: &str, scenario_index: usize) -> R
         }
     }
 
-    // End of scenario: close stdin and check the exit code.
     drop(stdin);
     let expected_exit = scenario.expect_exit_code.unwrap_or(0);
     let status = wait_exit(&mut child);
@@ -507,7 +479,6 @@ fn wait_exit(child: &mut Child) -> std::process::ExitStatus {
         Ok(None) => {}
         Err(_) => return std::process::ExitStatus::default(),
     }
-    // Wait briefly, then kill.
     let deadline = std::time::Instant::now() + EXIT_TIMEOUT;
     loop {
         match child.try_wait() {

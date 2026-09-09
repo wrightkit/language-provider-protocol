@@ -1,13 +1,3 @@
-//! LPP v1 conformance mock provider for `x-demo-lang`.
-//!
-//! A small stdio binary implementing the Language Provider Protocol v1
-//! (spec/lpp-v1.md). It serves the deliberately non-OPY/DEL language
-//! `x-demo-lang`: an equation-puzzle DSL. Compilation simulates the puzzle's
-//! solution and emits a puzzle evaluation sheet in the provider's own
-//! artifact format.
-//!
-//! Usage: `lpp-mock-provider [--without <capability>,...]`
-
 mod puzzle;
 
 use std::collections::HashMap;
@@ -106,7 +96,6 @@ impl Capabilities {
     }
 }
 
-/// The capability id governing a method, or `None` for unknown methods.
 fn capability_of(method: &str) -> Option<&'static str> {
     Some(match method {
         "lpp/check" => "check",
@@ -121,8 +110,6 @@ fn capability_of(method: &str) -> Option<&'static str> {
     })
 }
 
-/// A handler failure. `Lpp` maps to the LPP error envelope (code `-32000`
-/// with `data.lpp`); `Std` maps to a standard JSON-RPC error code.
 enum HandlerError {
     Lpp(&'static str, Value, String),
     Std(i64, &'static str),
@@ -258,7 +245,6 @@ fn main() {
             .read_line(&mut line)
             .unwrap_or_else(|e| panic!("failed to read stdin: {e}"));
         if read == 0 {
-            // EOF: exit cleanly with status 0.
             break;
         }
         let message = line.trim_end_matches(['\r', '\n']);
@@ -1040,7 +1026,6 @@ fn sorted_keys(map: &HashMap<String, Document>) -> Vec<String> {
     keys
 }
 
-/// Validate the document-level invariants (language id, version).
 fn check_document(doc: &Document) -> Result<(), HandlerError> {
     if doc.language_id != LANGUAGE_ID {
         return Err(HandlerError::Lpp(
@@ -1062,7 +1047,6 @@ fn check_document(doc: &Document) -> Result<(), HandlerError> {
     Ok(())
 }
 
-/// Parse a document and require a parseable puzzle (no error diagnostics).
 fn parse_ok(doc: &Document) -> Option<ParseOutput> {
     let parsed = parse_document(&doc.text);
     let has_errors = parsed.diagnostics.iter().any(|d| d.severity == "error");
