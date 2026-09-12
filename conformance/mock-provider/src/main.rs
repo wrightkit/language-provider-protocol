@@ -141,14 +141,11 @@ struct ProjectEntry {
     uri: String,
     language_id: String,
     version: i64,
-    #[serde(default)]
-    kind: ProjectTargetKind,
+    kind: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Copy)]
 enum ProjectTargetKind {
-    #[default]
     File,
     Directory,
 }
@@ -875,14 +872,41 @@ fn documents_for_request(
                     "project entry version must be a non-negative integer".to_string(),
                 ));
             }
-            let (documents, canonical_entry_uri) = load_project(&entry)?;
+            let target_kind =
+                project_target_kind(&entry, server.protocol_version.as_deref().unwrap())?;
+            let (documents, canonical_entry_uri) = load_project(&entry, target_kind)?;
             Ok((documents, Some(canonical_entry_uri)))
         }
         _ => Err(HandlerError::Std(-32602, "Invalid params")),
     }
 }
 
-fn load_project(entry: &ProjectEntry) -> Result<(HashMap<String, Document>, String), HandlerError> {
+fn project_target_kind(
+    entry: &ProjectEntry,
+    protocol_version: &str,
+) -> Result<ProjectTargetKind, HandlerError> {
+    match entry.kind.as_deref() {
+        None | Some("file") => Ok(ProjectTargetKind::File),
+        Some("directory") if protocol_version == PROTOCOL_VERSION_1_2 => {
+            Ok(ProjectTargetKind::Directory)
+        }
+        Some("directory") => Err(HandlerError::Lpp(
+            "invalidEntry",
+            json!({ "entryUri": entry.uri, "reason": "unsupportedKind" }),
+            "directory project targets require protocol version 1.2".to_string(),
+        )),
+        Some(_) => Err(HandlerError::Lpp(
+            "invalidEntry",
+            json!({ "entryUri": entry.uri, "reason": "unsupportedKind" }),
+            "project target kind is not supported".to_string(),
+        )),
+    }
+}
+
+fn load_project(
+    entry: &ProjectEntry,
+    target_kind: ProjectTargetKind,
+) -> Result<(HashMap<String, Document>, String), HandlerError> {
     if entry.language_id != LANGUAGE_ID {
         return Err(HandlerError::Lpp(
             "invalidEntry",
@@ -901,7 +925,7 @@ fn load_project(entry: &ProjectEntry) -> Result<(HashMap<String, Document>, Stri
         ));
     };
     let entry_path = std::fs::canonicalize(&entry_path).map_err(|_| {
-        let (reason, message) = match entry.kind {
+        let (reason, message) = match target_kind {
             ProjectTargetKind::File => ("entryNotFound", "project entry could not be loaded"),
             ProjectTargetKind::Directory => {
                 ("targetNotFound", "project target could not be loaded")
@@ -917,7 +941,7 @@ fn load_project(entry: &ProjectEntry) -> Result<(HashMap<String, Document>, Stri
             message.to_string(),
         )
     })?;
-    let (project_root, selected_entry) = match entry.kind {
+    let (project_root, selected_entry) = match target_kind {
         ProjectTargetKind::File => {
             if !entry_path.is_file() {
                 return Err(HandlerError::Lpp(
@@ -957,7 +981,19 @@ fn load_project(entry: &ProjectEntry) -> Result<(HashMap<String, Document>, Stri
                     "project directory has no default entry".to_string(),
                 ));
             }
-            (entry_path, selected.canonicalize().expect("entry exists"))
+            let selected = selected.canonicalize().map_err(|error| {
+                let uri = path_to_file_uri(&selected).unwrap_or_else(|| entry.uri.clone());
+                HandlerError::Lpp(
+                    "projectLoadFailed",
+                    json!({
+                        "entryUri": entry.uri,
+                        "reason": "defaultEntryUnreadable",
+                        "uri": uri,
+                    }),
+                    format!("default project entry could not be resolved: {error}"),
+                )
+            })?;
+            (entry_path, selected)
         }
     };
     let canonical_entry_uri = path_to_file_uri(&selected_entry).ok_or_else(|| {

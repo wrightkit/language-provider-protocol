@@ -298,8 +298,8 @@ directory targets in [Section 8.2](#82-directory-project-requests-lpp-12).
 
 ### 6.10 Project entry
 
-A project entry identifies the source file selected by the client for a
-provider-owned filesystem project load:
+A project entry identifies the source target selected by the client for a
+provider-owned filesystem project load. The example below selects a file:
 
 ```json
 {
@@ -317,9 +317,10 @@ provider-owned filesystem project load:
   filesystem snapshot for this request. It is echoed in every source result.
   It is not a filesystem content hash and does not provide cross-request stale
   detection.
-* `kind`: REQUIRED for LPP 1.2 directory-capable requests and omitted by LPP
-  1.0/1.1 clients. It is `"file"` for the existing entry behavior or
-  `"directory"` when the provider must discover the effective project entry.
+* `kind`: OPTIONAL for LPP 1.1 and LPP 1.2. When omitted, it requests the
+  existing file-entry behavior. LPP 1.2 clients MUST use `"directory"` when
+  the provider must discover the effective project entry from a directory;
+  `"file"` may be used explicitly for file-entry behavior.
 
 The entry identifies the user's selected source target only. The provider
 determines the effective project root and source closure according to the
@@ -437,8 +438,9 @@ when practical:
 ```
 
 The client then decides whether to terminate the session or restart with a
-supported version. LPP 1.0 clients MUST send `"1.0"`; clients using the
-project-loading extension MUST send `"1.1"`.
+supported version. LPP 1.0 clients MUST send `"1.0"`; clients using file-entry
+project loading MUST send `"1.1"` or `"1.2"`; clients using directory targets
+MUST send `"1.2"`.
 
 ## 8. Common request parameters
 
@@ -447,13 +449,13 @@ Document-scoped methods share this parameter shape:
 | Field | Type | Methods | Description |
 | --- | --- | --- | --- |
 | `documents` | DocumentSet | `check`, `compile`, `symbols`, `rename` | The documents to operate on. |
-| `entry` | Project entry | `check`, `compile` in LPP 1.1 | Alternative to `documents`; asks the provider to load the source closure from the selected entry. |
+| `entry` | Project entry | `check`, `compile` in LPP 1.1 and 1.2 | Alternative to `documents`; asks the provider to load the source closure from the selected entry or directory target. |
 | `document` | Document | `definition`, `references`, `validateEdits` | The single document to operate on. |
 | `projectRoot` | string, OPTIONAL | `check`, `compile`, `symbols`, `rename` | URI identifying the project the documents belong to. Purely informational in v1; providers MUST accept and MAY use it. |
 
-### 8.1 Entry-based project requests (LPP 1.1)
+### 8.1 Entry-based project requests (LPP 1.1 and 1.2)
 
-In LPP 1.1, `lpp/check` and `lpp/compile` accept either `documents` or
+In LPP 1.1 and 1.2, `lpp/check` and `lpp/compile` accept either `documents` or
 `entry`, but not both. An `entry` request is available only when the provider
 accepted protocol version `1.1` or `1.2` and advertised `projectLoading: true`.
 The optional `projectRoot` field remains legal and is informational; the
@@ -475,12 +477,13 @@ closure from the entry and the source language's rules.
 }
 ```
 
-The provider MUST load the entry and every additional source file required by
-the source language's project rules, then perform the requested operation on
-that complete source closure. It MUST NOT require the client to list those
-files in advance. The provider MUST read only the filesystem project
-identified by the entry and MUST NOT treat the client's working directory as a
-project root unless that is the source language's documented rule.
+For a file target, the provider MUST load the entry and every additional
+source file required by the source language's project rules, then perform the
+requested operation on that complete source closure. It MUST NOT require the
+client to list those files in advance. The provider MUST read only the
+filesystem project identified by the entry and MUST NOT treat the client's
+working directory as a project root unless that is the source language's
+documented rule.
 
 The result uses the normal `lpp/check` or `lpp/compile` shape. It MUST include
 diagnostics for every loaded source document, including documents that contain
@@ -520,7 +523,10 @@ Providers MUST return canonical source identities for every loaded document and
 MUST fail with `projectLoadFailed` if the directory or its language-owned
 default entry cannot be loaded. A `kind` of `"file"` has the same semantics as
 the LPP 1.1 entry request. LPP 1.1 clients omit `kind` and therefore always
-request file-entry behavior.
+request file-entry behavior. A directory target sent in an LPP 1.1 session
+MUST be rejected as `invalidEntry`; the provider MUST NOT perform directory
+entry selection. Any other `kind` value MUST also be rejected as
+`invalidEntry`.
 
 ## 9. lpp/check
 
@@ -569,7 +575,7 @@ analyze every document in the set and MUST report all diagnostics found.
 
 ## 10. lpp/compile
 
-Compile a document set into a single Workshop artifact. In LPP 1.1, an
+Compile a document set into a single Workshop artifact. In LPP 1.1 and 1.2, an
 entry-based request compiles the provider-loaded source closure as one unit;
 the `compile.requiresSingleDocument` refusal applies only to a
 document-supplied request that contains more than one document.

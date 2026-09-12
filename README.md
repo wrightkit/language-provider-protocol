@@ -28,7 +28,7 @@ its frontend, compiler, reconstruction, or Workshop integration internally.
 
 ## Status
 
-- Protocol versions: **1.0** and additive **1.1** (specified in [`spec/lpp-v1.md`](spec/lpp-v1.md)).
+- Protocol versions: **1.0**, additive **1.1** file-entry loading, and additive **1.2** directory targets (specified in [`spec/lpp-v1.md`](spec/lpp-v1.md)).
 - Repository state: initial published contract and conformance suite.
 - Wright is a client/consumer of the protocol; LPP is not a dependency from the
   language implementation back into Wright tooling internals.
