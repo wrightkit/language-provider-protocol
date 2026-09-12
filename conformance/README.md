@@ -1,6 +1,6 @@
 # LPP v1 Conformance Suite
 
-This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract, including the LPP 1.1 file-entry and LPP 1.2 directory-target project-loading revisions (see [`../spec/lpp-v1.md`](../spec/lpp-v1.md)).
+This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract, including the LPP 1.1 file-entry, LPP 1.2 directory-target project-loading, and LPP 1.3 source-identity revisions (see [`../spec/lpp-v1.md`](../spec/lpp-v1.md)).
 
 ## Layout
 
@@ -10,7 +10,7 @@ mock-provider/        Reference provider for the "x-demo-lang" equation DSL (Rus
 runner/               Conformance runner that replays fixtures against any provider binary
 ```
 
-* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter. The directory contains LPP 1.0, LPP 1.1, and LPP 1.2 scenarios.
+* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter. The directory contains LPP 1.0, LPP 1.1, LPP 1.2, and LPP 1.3 scenarios.
 * **Mock provider** (`mock-provider/`): a small Rust binary implementing the full LPP v1 surface for a demonstration language distinct from OPY and OSTW. It runs over stdio so clients (like the Wright LPP client in wrightkit/wright#142) can test against it directly.
 * **Runner** (`runner/`): spawns a fresh provider process per scenario, feeds requests over stdin, validates stdout responses against expectations, and checks the process exit code.
 
