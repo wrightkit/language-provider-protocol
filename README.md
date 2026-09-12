@@ -39,6 +39,7 @@ its frontend, compiler, reconstruction, or Workshop integration internally.
 AGENTS.md                    Repository ownership, routing, and validation rules
 LICENSE                      MIT License
 spec/lpp-v1.md               Normative LPP v1 specification
+docs/adr/                    Architecture Decision Records for material LPP choices
 conformance/README.md        Provider conformance workflow
 conformance/fixtures/v1/     Versioned JSON-RPC message fixtures
 conformance/mock-provider/   Reference mock provider for x-demo-lang
@@ -49,6 +50,8 @@ conformance/runner/          Conformance runner for provider binaries
 
 - Read [`spec/lpp-v1.md`](spec/lpp-v1.md) for the wire specification. A provider
   can be implemented using only the specification and conformance fixtures.
+- Read [`docs/adr/README.md`](docs/adr/README.md) for the registry and rationale
+  behind material process and wire-boundary decisions.
 - See [`conformance/README.md`](conformance/README.md) for the fixture runner and
   mock-provider workflow.
 

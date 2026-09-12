@@ -8,6 +8,10 @@
 | Conformance | `conformance/fixtures/v1/` + `conformance/runner` + `conformance/mock-provider` |
 | Client integration | wrightkit/wright#142 (Wright client/runtime) |
 
+> Decision rationale for material process and wire-boundary choices is recorded
+> in the non-normative [LPP ADR registry](../docs/adr/README.md). This
+> specification remains the source of truth for the current wire contract.
+
 ## 1. Introduction
 
 The Language Provider Protocol (LPP) defines the contract between a **client**
