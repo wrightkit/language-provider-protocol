@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.1.0...v1.2.0) (2026-09-12)
+
+
+### Features
+
+* **protocol:** support directory project targets ([#32](https://github.com/wrightkit/language-provider-protocol/issues/32)) ([80a8023](https://github.com/wrightkit/language-provider-protocol/commit/80a80235e4f58d6265abf5c8837198a96b0d21d4))
+
 ## 1.1.0 (2026-09-03)
 
 
