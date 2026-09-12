@@ -601,11 +601,17 @@ document-supplied request that contains more than one document.
   "diagnostics": [
     { "uri": "file:///project/puzzle.xdl", "version": 3, "diagnostics": [] }
   ],
+  "sourceIdentity": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
   "artifact": { "format": "x-demo/puzzle-eval-v1", "content": "{\"name\":\"clean\",\"ops\":[{\"arg\":2,\"name\":\"double\",\"op\":\"*\"},{\"arg\":1,\"name\":\"plus1\",\"op\":\"+\"}],\"solution\":[\"double\",\"double\"],\"start\":10,\"target\":40,\"value\":40}" }
 }
 ```
 
 * `diagnostics`: same shape as the `lpp/check` result.
+* `sourceIdentity`: an OPTIONAL lower-case SHA-256 hex digest of the
+  provider-selected primary source text. For an entry-based request, the
+  provider MUST return this identity when the client requires source identity
+  for the resolved project target; the provider owns effective entry
+  selection. Document-supplied requests MAY omit it.
 * `artifact`: the compiled Workshop artifact, or `null`.
 * The `artifact` MUST be `null` whenever any error-severity diagnostic is
   reported. The provider MAY return `null` artifact in other failure cases.
@@ -1059,7 +1065,7 @@ Methods:
 | `lpp/initialize` | none | `{ protocolVersion, clientInfo? }` | `{ protocolVersion, serverInfo, languages, capabilities }` |
 | `lpp/shutdown` | none | `{}` | `null` |
 | `lpp/check` | `check`; plus `projectLoading` for an LPP 1.1/1.2 `entry` request | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ documents: [{ uri, version, diagnostics }] }` |
-| `lpp/compile` | `compile`; plus `projectLoading` for an LPP 1.1/1.2 `entry` request | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ diagnostics: [{ uri, version, diagnostics }], artifact }` |
+| `lpp/compile` | `compile`; plus `projectLoading` for an LPP 1.1/1.2 `entry` request | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ diagnostics: [{ uri, version, diagnostics }], sourceIdentity?, artifact }` |
 | `lpp/reconstruct` | `reconstruct` | `{ artifact }` | `{ source, uri? }` |
 | `lpp/symbols` | `symbols` | `{ documents, projectRoot? }` | `{ documents: [{ uri, version, symbols }] }` |
 | `lpp/definition` | `definition` | `{ document, position }` | `{ locations }` |

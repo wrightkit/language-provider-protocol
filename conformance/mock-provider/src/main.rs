@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 
 use puzzle::{
     ARTIFACT_FORMAT, KIND_OP, KIND_PUZZLE, ParseOutput, Range, SourceText, compile_artifact,
@@ -488,7 +489,7 @@ impl Server {
             ));
         }
         let doc = match entry_uri {
-            Some(uri) => documents_set.get(&uri).expect("loaded entry is present"),
+            Some(ref uri) => documents_set.get(uri).expect("loaded entry is present"),
             None => documents_set.values().next().expect("len == 1"),
         };
         check_document(doc)?;
@@ -515,10 +516,19 @@ impl Server {
                 .expect("artifact serializes");
             json!({ "format": ARTIFACT_FORMAT, "content": content })
         };
-        Ok(json!({
+        let source_identity = entry_uri.as_ref().map(|uri| {
+            let mut hasher = Sha256::new();
+            hasher.update(documents_set[uri].text.as_bytes());
+            format!("{:x}", hasher.finalize())
+        });
+        let mut result = json!({
             "diagnostics": diagnostics,
             "artifact": artifact,
-        }))
+        });
+        if let Some(source_identity) = source_identity {
+            result["sourceIdentity"] = Value::String(source_identity);
+        }
+        Ok(result)
     }
 
     fn reconstruct(&self, params: Value) -> Result<Value, HandlerError> {

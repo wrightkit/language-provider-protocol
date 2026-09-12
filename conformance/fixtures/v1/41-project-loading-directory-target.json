@@ -18,7 +18,7 @@
     },
     {
       "request": {"jsonrpc": "2.0", "id": 3, "method": "lpp/compile", "params": {"entry": {"uri": "${PROJECT_URI}", "languageId": "x-demo-lang", "version": 7, "kind": "directory"}}},
-      "expectResponse": {"jsonrpc": "2.0", "id": 3, "result": {"diagnostics": [{"uri": "${PROJECT_URI}/entry.xdl", "version": 7, "diagnostics": []}, {"uri": "${PROJECT_URI}/support.xdl", "version": 7, "diagnostics": []}], "artifact": {"format": "x-demo/puzzle-eval-v1", "content": "{\"name\":\"entry\",\"ops\":[{\"arg\":1,\"name\":\"plus1\",\"op\":\"+\"}],\"solution\":[\"plus1\"],\"start\":1,\"target\":2,\"value\":2}"}}}
+      "expectResponse": {"jsonrpc": "2.0", "id": 3, "result": {"diagnostics": [{"uri": "${PROJECT_URI}/entry.xdl", "version": 7, "diagnostics": []}, {"uri": "${PROJECT_URI}/support.xdl", "version": 7, "diagnostics": []}], "sourceIdentity": "a92a4daf6631cbb574095cef0296d3d8217459a48e7899f98d832bb63f510822", "artifact": {"format": "x-demo/puzzle-eval-v1", "content": "{\"name\":\"entry\",\"ops\":[{\"arg\":1,\"name\":\"plus1\",\"op\":\"+\"}],\"solution\":[\"plus1\"],\"start\":1,\"target\":2,\"value\":2}"}}}
     },
     {
       "request": {"jsonrpc": "2.0", "id": 4, "method": "lpp/shutdown", "params": {}},
