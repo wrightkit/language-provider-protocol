@@ -14,6 +14,7 @@ use puzzle::{
 
 const DEFAULT_PROTOCOL_VERSION: &str = "1.0";
 const PROTOCOL_VERSION_1_1: &str = "1.1";
+const PROTOCOL_VERSION_1_2: &str = "1.2";
 const SERVER_NAME: &str = "lpp-mock-provider";
 const LANGUAGE_ID: &str = "x-demo-lang";
 const LANGUAGE_EXTENSIONS: [&str; 1] = ["xdl"];
@@ -89,7 +90,10 @@ impl Capabilities {
             "rename": self.rename,
             "editValidation": self.edit_validation,
         });
-        if protocol_version == PROTOCOL_VERSION_1_1 {
+        if matches!(
+            protocol_version,
+            PROTOCOL_VERSION_1_1 | PROTOCOL_VERSION_1_2
+        ) {
             capabilities["projectLoading"] = json!(self.project_loading);
         }
         capabilities
@@ -137,6 +141,13 @@ struct ProjectEntry {
     uri: String,
     language_id: String,
     version: i64,
+    kind: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ProjectTargetKind {
+    File,
+    Directory,
 }
 
 #[allow(dead_code)]
@@ -276,7 +287,10 @@ fn parse_args() -> (String, Capabilities) {
                     eprintln!("lpp-mock-provider: --protocol-version requires a version");
                     std::process::exit(2);
                 };
-                if version != DEFAULT_PROTOCOL_VERSION && version != PROTOCOL_VERSION_1_1 {
+                if version != DEFAULT_PROTOCOL_VERSION
+                    && version != PROTOCOL_VERSION_1_1
+                    && version != PROTOCOL_VERSION_1_2
+                {
                     eprintln!("lpp-mock-provider: unsupported protocol version '{version}'");
                     std::process::exit(2);
                 }
@@ -838,7 +852,10 @@ fn documents_for_request(
     match (documents, entry) {
         (Some(documents), None) => Ok((documents, None)),
         (None, Some(entry)) => {
-            if server.protocol_version.as_deref() != Some(PROTOCOL_VERSION_1_1) {
+            if !matches!(
+                server.protocol_version.as_deref(),
+                Some(PROTOCOL_VERSION_1_1) | Some(PROTOCOL_VERSION_1_2)
+            ) {
                 return Err(HandlerError::Std(-32602, "Invalid params"));
             }
             if !server.caps.project_loading {
@@ -855,14 +872,41 @@ fn documents_for_request(
                     "project entry version must be a non-negative integer".to_string(),
                 ));
             }
-            let (documents, canonical_entry_uri) = load_project(&entry)?;
+            let target_kind =
+                project_target_kind(&entry, server.protocol_version.as_deref().unwrap())?;
+            let (documents, canonical_entry_uri) = load_project(&entry, target_kind)?;
             Ok((documents, Some(canonical_entry_uri)))
         }
         _ => Err(HandlerError::Std(-32602, "Invalid params")),
     }
 }
 
-fn load_project(entry: &ProjectEntry) -> Result<(HashMap<String, Document>, String), HandlerError> {
+fn project_target_kind(
+    entry: &ProjectEntry,
+    protocol_version: &str,
+) -> Result<ProjectTargetKind, HandlerError> {
+    match entry.kind.as_deref() {
+        None | Some("file") => Ok(ProjectTargetKind::File),
+        Some("directory") if protocol_version == PROTOCOL_VERSION_1_2 => {
+            Ok(ProjectTargetKind::Directory)
+        }
+        Some("directory") => Err(HandlerError::Lpp(
+            "invalidEntry",
+            json!({ "entryUri": entry.uri, "reason": "unsupportedKind" }),
+            "directory project targets require protocol version 1.2".to_string(),
+        )),
+        Some(_) => Err(HandlerError::Lpp(
+            "invalidEntry",
+            json!({ "entryUri": entry.uri, "reason": "unsupportedKind" }),
+            "project target kind is not supported".to_string(),
+        )),
+    }
+}
+
+fn load_project(
+    entry: &ProjectEntry,
+    target_kind: ProjectTargetKind,
+) -> Result<(HashMap<String, Document>, String), HandlerError> {
     if entry.language_id != LANGUAGE_ID {
         return Err(HandlerError::Lpp(
             "invalidEntry",
@@ -881,35 +925,84 @@ fn load_project(entry: &ProjectEntry) -> Result<(HashMap<String, Document>, Stri
         ));
     };
     let entry_path = std::fs::canonicalize(&entry_path).map_err(|_| {
+        let (reason, message) = match target_kind {
+            ProjectTargetKind::File => ("entryNotFound", "project entry could not be loaded"),
+            ProjectTargetKind::Directory => {
+                ("targetNotFound", "project target could not be loaded")
+            }
+        };
         HandlerError::Lpp(
             "projectLoadFailed",
             json!({
                 "entryUri": entry.uri,
-                "reason": "entryNotFound",
+                "reason": reason,
                 "uri": entry.uri,
             }),
-            "project entry could not be loaded".to_string(),
+            message.to_string(),
         )
     })?;
-    if !entry_path.is_file() {
-        return Err(HandlerError::Lpp(
-            "projectLoadFailed",
-            json!({
-                "entryUri": entry.uri,
-                "reason": "entryNotFile",
-                "uri": entry.uri,
-            }),
-            "project entry is not a file".to_string(),
-        ));
-    }
-    let canonical_entry_uri = path_to_file_uri(&entry_path).ok_or_else(|| {
+    let (project_root, selected_entry) = match target_kind {
+        ProjectTargetKind::File => {
+            if !entry_path.is_file() {
+                return Err(HandlerError::Lpp(
+                    "projectLoadFailed",
+                    json!({
+                        "entryUri": entry.uri,
+                        "reason": "entryNotFile",
+                        "uri": entry.uri,
+                    }),
+                    "project entry is not a file".to_string(),
+                ));
+            }
+            let root = entry_path.parent().expect("a file has a parent");
+            (root.to_path_buf(), entry_path)
+        }
+        ProjectTargetKind::Directory => {
+            if !entry_path.is_dir() {
+                return Err(HandlerError::Lpp(
+                    "projectLoadFailed",
+                    json!({
+                        "entryUri": entry.uri,
+                        "reason": "targetNotDirectory",
+                        "uri": entry.uri,
+                    }),
+                    "project target is not a directory".to_string(),
+                ));
+            }
+            let selected = entry_path.join("entry.xdl");
+            if !selected.is_file() {
+                return Err(HandlerError::Lpp(
+                    "projectLoadFailed",
+                    json!({
+                        "entryUri": entry.uri,
+                        "reason": "defaultEntryNotFound",
+                        "uri": entry.uri,
+                    }),
+                    "project directory has no default entry".to_string(),
+                ));
+            }
+            let selected = selected.canonicalize().map_err(|error| {
+                let uri = path_to_file_uri(&selected).unwrap_or_else(|| entry.uri.clone());
+                HandlerError::Lpp(
+                    "projectLoadFailed",
+                    json!({
+                        "entryUri": entry.uri,
+                        "reason": "defaultEntryUnreadable",
+                        "uri": uri,
+                    }),
+                    format!("default project entry could not be resolved: {error}"),
+                )
+            })?;
+            (entry_path, selected)
+        }
+    };
+    let canonical_entry_uri = path_to_file_uri(&selected_entry).ok_or_else(|| {
         HandlerError::Lpp(
             "projectLoadFailed",
             json!({ "entryUri": entry.uri, "reason": "sourceIdentityUnavailable" }),
             "project entry has no stable URI".to_string(),
         )
     })?;
-    let project_root = entry_path.parent().expect("a file has a parent");
     let mut paths: Vec<PathBuf> = std::fs::read_dir(project_root)
         .map_err(|error| {
             HandlerError::Lpp(
@@ -924,7 +1017,7 @@ fn load_project(entry: &ProjectEntry) -> Result<(HashMap<String, Document>, Stri
         .filter_map(Result::ok)
         .map(|directory_entry| directory_entry.path())
         .filter(|path| {
-            path == &entry_path || path.extension().is_some_and(|extension| extension == "xdl")
+            path == &selected_entry || path.extension().is_some_and(|extension| extension == "xdl")
         })
         .collect();
     paths.sort();
@@ -945,7 +1038,7 @@ fn load_project(entry: &ProjectEntry) -> Result<(HashMap<String, Document>, Stri
             HandlerError::Lpp(
                 "projectLoadFailed",
                 json!({
-                    "entryUri": entry.uri,
+                "entryUri": entry.uri,
                     "reason": "sourceIdentityUnavailable",
                 }),
                 "source file has no stable URI".to_string(),
