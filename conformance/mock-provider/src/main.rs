@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 
 use puzzle::{
     ARTIFACT_FORMAT, KIND_OP, KIND_PUZZLE, ParseOutput, Range, SourceText, compile_artifact,
@@ -15,6 +16,7 @@ use puzzle::{
 const DEFAULT_PROTOCOL_VERSION: &str = "1.0";
 const PROTOCOL_VERSION_1_1: &str = "1.1";
 const PROTOCOL_VERSION_1_2: &str = "1.2";
+const PROTOCOL_VERSION_1_3: &str = "1.3";
 const SERVER_NAME: &str = "lpp-mock-provider";
 const LANGUAGE_ID: &str = "x-demo-lang";
 const LANGUAGE_EXTENSIONS: [&str; 1] = ["xdl"];
@@ -30,6 +32,7 @@ struct Capabilities {
     rename: bool,
     edit_validation: bool,
     project_loading: bool,
+    source_identity: bool,
 }
 
 impl Capabilities {
@@ -44,6 +47,7 @@ impl Capabilities {
             rename: true,
             edit_validation: true,
             project_loading: true,
+            source_identity: true,
         }
     }
 
@@ -58,6 +62,7 @@ impl Capabilities {
             "rename" => &mut self.rename,
             "editValidation" => &mut self.edit_validation,
             "projectLoading" => &mut self.project_loading,
+            "sourceIdentity" => &mut self.source_identity,
             _ => return false,
         };
         *field = false;
@@ -75,6 +80,7 @@ impl Capabilities {
             "rename" => self.rename,
             "editValidation" => self.edit_validation,
             "projectLoading" => self.project_loading,
+            "sourceIdentity" => self.source_identity,
             _ => false,
         }
     }
@@ -92,9 +98,12 @@ impl Capabilities {
         });
         if matches!(
             protocol_version,
-            PROTOCOL_VERSION_1_1 | PROTOCOL_VERSION_1_2
+            PROTOCOL_VERSION_1_1 | PROTOCOL_VERSION_1_2 | PROTOCOL_VERSION_1_3
         ) {
             capabilities["projectLoading"] = json!(self.project_loading);
+        }
+        if protocol_version == PROTOCOL_VERSION_1_3 {
+            capabilities["sourceIdentity"] = json!(self.source_identity);
         }
         capabilities
     }
@@ -290,6 +299,7 @@ fn parse_args() -> (String, Capabilities) {
                 if version != DEFAULT_PROTOCOL_VERSION
                     && version != PROTOCOL_VERSION_1_1
                     && version != PROTOCOL_VERSION_1_2
+                    && version != PROTOCOL_VERSION_1_3
                 {
                     eprintln!("lpp-mock-provider: unsupported protocol version '{version}'");
                     std::process::exit(2);
@@ -488,7 +498,7 @@ impl Server {
             ));
         }
         let doc = match entry_uri {
-            Some(uri) => documents_set.get(&uri).expect("loaded entry is present"),
+            Some(ref uri) => documents_set.get(uri).expect("loaded entry is present"),
             None => documents_set.values().next().expect("len == 1"),
         };
         check_document(doc)?;
@@ -515,10 +525,23 @@ impl Server {
                 .expect("artifact serializes");
             json!({ "format": ARTIFACT_FORMAT, "content": content })
         };
-        Ok(json!({
+        let source_identity = entry_uri.as_ref().map(|uri| {
+            let mut hasher = Sha256::new();
+            hasher.update(documents_set[uri].text.as_bytes());
+            format!("{:x}", hasher.finalize())
+        });
+        let mut result = json!({
             "diagnostics": diagnostics,
             "artifact": artifact,
-        }))
+        });
+        if self.protocol_version.as_deref() == Some(PROTOCOL_VERSION_1_3)
+            && self.caps.source_identity
+        {
+            if let Some(source_identity) = source_identity {
+                result["sourceIdentity"] = Value::String(source_identity);
+            }
+        }
+        Ok(result)
     }
 
     fn reconstruct(&self, params: Value) -> Result<Value, HandlerError> {
@@ -854,7 +877,9 @@ fn documents_for_request(
         (None, Some(entry)) => {
             if !matches!(
                 server.protocol_version.as_deref(),
-                Some(PROTOCOL_VERSION_1_1) | Some(PROTOCOL_VERSION_1_2)
+                Some(PROTOCOL_VERSION_1_1)
+                    | Some(PROTOCOL_VERSION_1_2)
+                    | Some(PROTOCOL_VERSION_1_3)
             ) {
                 return Err(HandlerError::Std(-32602, "Invalid params"));
             }
@@ -887,7 +912,12 @@ fn project_target_kind(
 ) -> Result<ProjectTargetKind, HandlerError> {
     match entry.kind.as_deref() {
         None | Some("file") => Ok(ProjectTargetKind::File),
-        Some("directory") if protocol_version == PROTOCOL_VERSION_1_2 => {
+        Some("directory")
+            if matches!(
+                protocol_version,
+                PROTOCOL_VERSION_1_2 | PROTOCOL_VERSION_1_3
+            ) =>
+        {
             Ok(ProjectTargetKind::Directory)
         }
         Some("directory") => Err(HandlerError::Lpp(

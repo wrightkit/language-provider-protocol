@@ -8,6 +8,7 @@ description = "LPP v1 conformance mock provider for the x-demo-lang puzzle/equat
 publish = false
 
 [dependencies]
+sha2 = "0.10"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 
