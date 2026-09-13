@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.2.0...v1.3.0) (2026-09-13)
+
+
+### Features
+
+* **protocol:** return owner-selected source identity ([#34](https://github.com/wrightkit/language-provider-protocol/issues/34)) ([7456e62](https://github.com/wrightkit/language-provider-protocol/commit/7456e62b98ae451655c992c3d4c99e5e53838f42))
+
 ## [1.2.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.1.0...v1.2.0) (2026-09-12)
 
 
