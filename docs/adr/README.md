@@ -16,6 +16,8 @@ material process or wire-boundary decision.
 | ADR | Decision | Status | Decision date (UTC) | Backfilled (UTC) | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | [0001](0001-provider-owned-project-loading.md) | Provider-owned project loading from a client-selected entry target | Accepted | 2026-09-02 | 2026-09-12 | [Issue #16](https://github.com/wrightkit/language-provider-protocol/issues/16), [PR #17](https://github.com/wrightkit/language-provider-protocol/pull/17) |
+| [0002](0002-directory-project-targets.md) | Provider-owned directory project targets | Accepted | 2026-09-12 | 2026-09-14 | [Issue #32](https://github.com/wrightkit/language-provider-protocol/issues/32), [PR #32](https://github.com/wrightkit/language-provider-protocol/pull/32) |
+| [0003](0003-owner-selected-source-identity.md) | Owner-selected source identity for entry compilation | Accepted | 2026-09-13 | 2026-09-14 | [Issue #34](https://github.com/wrightkit/language-provider-protocol/issues/34), [PR #34](https://github.com/wrightkit/language-provider-protocol/pull/34) |
 
 ## Post-baseline audit
 
@@ -37,3 +39,19 @@ Within the reviewed history through commit
 [`a9e26a4`](https://github.com/wrightkit/language-provider-protocol/commit/a9e26a4168185b2fd89ea4293fbc89664e574536a),
 the audit identified no additional material process or wire-boundary decision
 requiring ADR backfill.
+
+## Follow-up audit
+
+The follow-up audit covers accepted changes after the original baseline through
+commit [`83f6d37`](https://github.com/wrightkit/language-provider-protocol/commit/83f6d376652db9bce090adba3b23c2dec0d0abaf)
+on 2026-09-13. It keeps the original audit scope and records only changes that
+materially affect the LPP process or wire boundary.
+
+| Post-audit area | Classification | Rationale |
+| --- | --- | --- |
+| Directory project targets ([Issue #32](https://github.com/wrightkit/language-provider-protocol/issues/32), [PR #32](https://github.com/wrightkit/language-provider-protocol/pull/32)) | Backfill-required; resolved by [ADR 0002](0002-directory-project-targets.md) | LPP 1.2 added a directory target shape and version gate while preserving the provider-owned project discovery decision in ADR 0001. |
+| Owner-selected source identity ([Issue #34](https://github.com/wrightkit/language-provider-protocol/issues/34), [PR #34](https://github.com/wrightkit/language-provider-protocol/pull/34)) | Backfill-required; resolved by [ADR 0003](0003-owner-selected-source-identity.md) | LPP 1.3 added a negotiated compile-result identity so clients can preserve provider-selected source identity without changing LPP 1.1 or 1.2 responses. |
+| Release metadata for LPP 1.3 ([PR #35](https://github.com/wrightkit/language-provider-protocol/pull/35)) | Non-ADR detail | The release changed repository version metadata and did not change the protocol process or wire contract. |
+
+The follow-up audit finds no material process or wire-boundary decision through
+commit `83f6d37` that remains without a discoverable ADR classification.
