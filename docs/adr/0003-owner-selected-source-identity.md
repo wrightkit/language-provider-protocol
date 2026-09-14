@@ -15,7 +15,7 @@ artifact does not expose source identity. Reconstructing an identity in Wright
 would either require duplicating provider selection or hashing a source the
 client did not select.
 
-The source-identity need was accepted in [Issue #34](https://github.com/wrightkit/language-provider-protocol/issues/34)
+The source-identity need was accepted in [PR #34](https://github.com/wrightkit/language-provider-protocol/pull/34)
 as the protocol-side dependency for preserving source identity in
 [wrightkit/wright#317](https://github.com/wrightkit/wright/issues/317).
 
@@ -82,7 +82,7 @@ new consumers.
 
 ## Historical evidence
 
-- [Issue #34](https://github.com/wrightkit/language-provider-protocol/issues/34)
+- [PR #34](https://github.com/wrightkit/language-provider-protocol/pull/34)
   defines the source-identity goal and its relationship to the directory-target
   workflow.
 - [PR #34](https://github.com/wrightkit/language-provider-protocol/pull/34)

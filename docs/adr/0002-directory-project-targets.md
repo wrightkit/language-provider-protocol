@@ -14,7 +14,7 @@ select a project directory, while the source-language implementation already
 owns the rules for finding its effective entry, project root, and source
 closure.
 
-The directory-target need was accepted in [Issue #32](https://github.com/wrightkit/language-provider-protocol/issues/32)
+The directory-target need was accepted in [PR #32](https://github.com/wrightkit/language-provider-protocol/pull/32)
 as the protocol-side dependency for [wrightkit/wright#317](https://github.com/wrightkit/wright/issues/317).
 
 ## Decision
@@ -75,7 +75,7 @@ make directory selection language-specific client policy.
 
 ## Historical evidence
 
-- [Issue #32](https://github.com/wrightkit/language-provider-protocol/issues/32)
+- [PR #32](https://github.com/wrightkit/language-provider-protocol/pull/32)
   defines the directory-target goal, compatibility boundary, and ownership.
 - [PR #32](https://github.com/wrightkit/language-provider-protocol/pull/32)
   merged the implementation as commit
