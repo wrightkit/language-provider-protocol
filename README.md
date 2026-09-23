@@ -28,7 +28,7 @@ its frontend, compiler, reconstruction, or Workshop integration internally.
 
 ## Status
 
-- Protocol versions: **1.0**, additive **1.1** file-entry loading, additive **1.2** directory targets, and additive **1.3** source identity for entry-based compilation (specified in [`spec/lpp-v1.md`](spec/lpp-v1.md)).
+- Protocol versions: **1.0**, additive **1.1** file-entry loading, additive **1.2** directory targets, and additive **1.3** source identity for entry-based compilation (specified in [`docs/spec/README.md`](docs/spec/README.md)).
 - Repository state: initial published contract and conformance suite.
 - Wright is a client/consumer of the protocol; LPP is not a dependency from the
   language implementation back into Wright tooling internals.
@@ -38,7 +38,7 @@ its frontend, compiler, reconstruction, or Workshop integration internally.
 ```text
 AGENTS.md                    Repository ownership, routing, and validation rules
 LICENSE                      MIT License
-spec/lpp-v1.md               Normative LPP v1 specification
+docs/spec/README.md               Normative LPP v1 specification
 docs/adr/                    Architecture Decision Records for material LPP choices
 conformance/README.md        Provider conformance workflow
 conformance/fixtures/v1/     Versioned JSON-RPC message fixtures
@@ -46,9 +46,13 @@ conformance/mock-provider/   Reference mock provider for x-demo-lang
 conformance/runner/          Conformance runner for provider binaries
 ```
 
+## Documentation
+
+Durable protocol documentation is indexed in [`docs/README.md`](docs/README.md). The normative LPP v1 contract starts at [`docs/spec/README.md`](docs/spec/README.md) and is split by protocol concern for progressive disclosure.
+
 ## Specification and conformance
 
-- Read [`spec/lpp-v1.md`](spec/lpp-v1.md) for the wire specification. A provider
+- Read [`docs/spec/README.md`](docs/spec/README.md) for the wire specification. A provider
   can be implemented using only the specification and conformance fixtures.
 - Read [`docs/adr/README.md`](docs/adr/README.md) for the registry and rationale
   behind material process and wire-boundary decisions.

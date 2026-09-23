@@ -1,6 +1,6 @@
 # LPP v1 Conformance Suite
 
-This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract, including the LPP 1.1 file-entry, LPP 1.2 directory-target project-loading, and LPP 1.3 source-identity revisions (see [`../spec/lpp-v1.md`](../spec/lpp-v1.md)).
+This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract, including the LPP 1.1 file-entry, LPP 1.2 directory-target project-loading, and LPP 1.3 source-identity revisions (see [`../docs/spec/README.md`](../spec/lpp-v1.md)).
 
 ## Layout
 

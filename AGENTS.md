@@ -17,7 +17,7 @@ or a duplicate of the specification.
 Before implementing a task, identify the semantic and product owner:
 
 * **This repository (`language-provider-protocol`)**: Owns the LPP
-  specification (`spec/`), the conformance suite (`conformance/`: fixtures,
+  specification (`docs/spec/`), the conformance suite (`conformance/`: fixtures,
   runner, and the reference mock provider), and the protocol's version
   negotiation contract. All protocol-visible schema changes live here.
 * **Wright (`wright`)**: Owns the client/runtime side: provider discovery,
@@ -50,7 +50,7 @@ implementation.
 * No speculative capabilities. Capability ids, methods, and fields are added
   only when a concrete ecosystem need exists, and only through the version
   negotiation contract documented in the spec.
-* Conformance fixtures are normative evidence. Any protocol-visible change
+* Conformance fixtures are normative test inputs. Any protocol-visible change
   MUST land with matching fixture updates, and every fixture MUST pass against
   the reference mock provider without protocol schema changes.
 * Fixtures and conformance scenarios are versioned (`conformance/fixtures/v1/`)
@@ -75,7 +75,7 @@ conformance; state the evidence level and boundary.
 
 ## Routing and change paths
 
-* **Spec or schema change**: edit `spec/lpp-v1.md` and the versioned fixtures
+* **Spec or schema change**: edit the relevant file under `docs/spec/` and the versioned fixtures
   together; document evolution implications in the spec's version-negotiation
   section. Do not change the wire contract without fixture coverage.
 * **Fixture or runner change**: keep fixtures deterministic and self-contained;
@@ -97,3 +97,21 @@ conformance; state the evidence level and boundary.
   material.
 * Canonical repository-facing content is written in English. Preserve protocol
   identifiers exactly as defined in the spec.
+
+
+## Documentation
+
+`docs/README.md` is the durable documentation index. Keep durable protocol and
+architecture documentation under `docs/` and use progressive disclosure:
+higher-level files route to the smallest relevant specification or decision
+document instead of accumulating unrelated protocol detail.
+
+If a change materially changes protocol behavior, a public wire contract,
+architecture, ownership, contributor workflow, or conformance procedure, update
+the owning durable documentation in the same PR when applicable. Review must
+explicitly check documentation impact.
+
+When adding, splitting, moving, or retiring durable documentation, update
+`docs/README.md` and affected links. Keep mutable progress and current execution
+state in Issues, PRs, CI, releases, or generated output rather than durable
+documentation.

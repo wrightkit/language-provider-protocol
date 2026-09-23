@@ -41,7 +41,7 @@ entry or required source file produces `projectLoadFailed`; neither condition
 may produce a partial successful result.
 
 The normative contract and conformance evidence are defined by
-[specification sections 6.10, 7.3, 7.4, 8.1, 10, and 19](../../spec/lpp-v1.md)
+[specification sections 6.10, 7.3, 7.4, 8.1, 10, and 19](../spec/README.md)
 and [fixtures 36–40](../../conformance/fixtures/v1/).
 
 ## Consequences
