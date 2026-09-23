@@ -39,7 +39,7 @@ does not identify the complete source closure, attest semantic equivalence, or
 replace the provider's source-loading and entry-selection responsibilities.
 
 The normative contract and conformance evidence are defined by
-[specification sections 6.10, 7.3, 7.4, 8.2, 10, and 19](../../spec/lpp-v1.md)
+[specification sections 6.10, 7.3, 7.4, 8.2, 10, and 19](../spec/README.md)
 and [fixtures 43–44](../../conformance/fixtures/v1/).
 
 ## Consequences

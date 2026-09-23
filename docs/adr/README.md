@@ -1,7 +1,7 @@
 # LPP Architecture Decision Records
 
 This directory records material decisions about the LPP process and wire
-boundary. The normative contract remains in [`spec/lpp-v1.md`](../../spec/lpp-v1.md);
+boundary. The normative contract remains in [`spec/lpp-v1.md`](../spec/README.md);
 ADRs preserve the rationale, alternatives, and consequences that should not be
 inferred from the wire schema alone.
 

@@ -38,7 +38,7 @@ discovery, and LPP carries only the selected filesystem target and the
 result/error contract.
 
 The normative contract and conformance evidence are defined by
-[specification sections 6.10, 7.3, 7.4, 8.1, 8.2, and 19](../../spec/lpp-v1.md)
+[specification sections 6.10, 7.3, 7.4, 8.1, 8.2, and 19](../spec/README.md)
 and [fixtures 40–42](../../conformance/fixtures/v1/).
 
 ## Consequences
