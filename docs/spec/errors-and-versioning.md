@@ -88,9 +88,15 @@ clients MUST NOT parse `message`.
   to interoperate.
 * `MINOR` changes are additive: new OPTIONAL request/result fields, new
   OPTIONAL methods, or new capability ids that providers may choose not to
-  implement. A provider MUST ignore unknown fields it does not understand, and
-  a client MUST NOT depend on fields the provider did not advertise via
-  capabilities.
+  implement. A provider MUST ignore unknown fields it does not understand,
+  except a field that the specification defines only for a later version than
+  the negotiated one and that the provider implements: such a field is
+  version-gated and MUST be rejected as its section specifies (for example
+  `acceptedArtifactFormats` in a session before LPP 1.4). A provider that does
+  not implement the later version never negotiates it, so a client can rely on
+  a version-gated field only in a session that negotiated the version defining
+  it. A client MUST NOT depend on any other field the provider did not
+  advertise via capabilities.
 
 ### 19.2 Negotiation
 
