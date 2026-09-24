@@ -977,6 +977,13 @@ pub(crate) fn is_valid_identifier(name: &str) -> bool {
 }
 
 pub(crate) const ARTIFACT_FORMAT: &str = "x-demo/puzzle-eval-v1";
+/// Compile-only format: `lpp/reconstruct` does not support it.
+pub(crate) const SUMMARY_ARTIFACT_FORMAT: &str = "x-demo/puzzle-summary-v1";
+pub(crate) const COMPILE_ARTIFACT_FORMATS: [&str; 2] = [ARTIFACT_FORMAT, SUMMARY_ARTIFACT_FORMAT];
+
+pub(crate) fn summary_artifact(puzzle: &Puzzle, value: i64) -> serde_json::Value {
+    serde_json::json!({ "name": puzzle.name, "value": value })
+}
 
 pub(crate) fn compile_artifact(puzzle: &Puzzle, value: i64) -> serde_json::Value {
     serde_json::json!({

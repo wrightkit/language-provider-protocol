@@ -12,8 +12,9 @@ contract:
   reconstruct, symbols, definition, references, rename, edit validation,
   project loading, errors/refusals, protocol mismatch, malformed messages,
   and shutdown. The same directory covers LPP 1.0, its LPP 1.1 file-entry
-  revision, its LPP 1.2 directory-target revision, and its LPP 1.3
-  source-identity revision.
+  revision, its LPP 1.2 directory-target revision, its LPP 1.3
+  source-identity revision, and its LPP 1.4 artifact-format negotiation
+  revision.
 * `conformance/runner/`: a runner that replays fixtures against any provider
   binary and compares responses exactly.
 * `conformance/mock-provider/`: the reference provider for the demonstration
@@ -34,8 +35,8 @@ Methods:
 | --- | --- | --- | --- |
 | `lpp/initialize` | none | `{ protocolVersion, clientInfo? }` | `{ protocolVersion, serverInfo, languages, capabilities }` |
 | `lpp/shutdown` | none | `{}` | `null` |
-| `lpp/check` | `check`; plus `projectLoading` for an LPP 1.1/1.2/1.3 `entry` request | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ documents: [{ uri, version, diagnostics }] }` |
-| `lpp/compile` | `compile`; plus `projectLoading` for an LPP 1.1/1.2/1.3 `entry` request and `sourceIdentity` for an LPP 1.3 entry result | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ diagnostics: [{ uri, version, diagnostics }], sourceIdentity?, artifact }` |
+| `lpp/check` | `check`; plus `projectLoading` for an LPP 1.1+ `entry` request | `{ documents, projectRoot? }` or `{ entry, projectRoot? }` | `{ documents: [{ uri, version, diagnostics }] }` |
+| `lpp/compile` | `compile`; plus `projectLoading` for an LPP 1.1+ `entry` request and `sourceIdentity` for an LPP 1.3+ entry result | `{ documents, projectRoot?, acceptedArtifactFormats? }` or `{ entry, projectRoot?, acceptedArtifactFormats? }` (`acceptedArtifactFormats`: LPP 1.4) | `{ diagnostics: [{ uri, version, diagnostics }], sourceIdentity?, artifact }` |
 | `lpp/reconstruct` | `reconstruct` | `{ artifact }` | `{ source, uri? }` |
 | `lpp/symbols` | `symbols` | `{ documents, projectRoot? }` | `{ documents: [{ uri, version, symbols }] }` |
 | `lpp/definition` | `definition` | `{ document, position }` | `{ locations }` |
@@ -55,6 +56,7 @@ provider-defined codes; other providers MAY use different codes.
 | `refusalCode` | Meaning |
 | --- | --- |
 | `compile.requiresSingleDocument` | Compile requires exactly one document. |
+| `compile.artifactFormatUnsupported` | None of the accepted artifact formats is supported. |
 | `reconstruct.artifactFormatUnsupported` | The artifact format is not supported. |
 | `definition.noSymbolAtPosition` | No symbol at the given position. |
 | `references.noSymbolAtPosition` | No symbol at the given position. |
