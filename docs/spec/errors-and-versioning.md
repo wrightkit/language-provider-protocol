@@ -79,7 +79,9 @@ clients MUST NOT parse `message`.
 * Protocol versions are strings of the form `MAJOR.MINOR` (for example
   `"1.0"`). LPP 1.0 is the first published version; LPP 1.1 adds file-entry
   project loading, LPP 1.2 adds directory targets, and LPP 1.3 adds the
-  optional `sourceIdentity` capability for entry-based compile results.
+  optional `sourceIdentity` capability for entry-based compile results, and
+  LPP 1.4 adds `acceptedArtifactFormats` artifact format negotiation to
+  `lpp/compile`.
 * `MAJOR` changes are breaking: message shapes, method semantics, or framing
   may change. A breaking change always produces a new MAJOR version, and
   clients and providers speaking different MAJOR versions are never expected
@@ -96,10 +98,12 @@ clients MUST NOT parse `message`.
 * The provider either accepts it (echoing the version in the result) or fails
   with `protocolVersionMismatch` listing `supportedProtocolVersions`.
 * A client that receives the mismatch MUST pick the highest mutually supported
-  version and restart the session, or terminate. LPP 1.1, 1.2, and 1.3 clients
+  version and restart the session, or terminate. LPP 1.1 through 1.4 clients
   MAY use the `projectLoading` capability; clients that need directory targets
-  MUST request `"1.2"` or `"1.3"`. Clients that need source identity MUST
-  request `"1.3"` and require `sourceIdentity: true` in the result capabilities.
+  MUST request `"1.2"` or later. Clients that need source identity MUST
+  request `"1.3"` or later and require `sourceIdentity: true` in the result
+  capabilities. Clients that send `acceptedArtifactFormats` MUST request
+  `"1.4"`.
 * A provider MUST support at least one of the versions it lists in
   `supportedProtocolVersions`.
 

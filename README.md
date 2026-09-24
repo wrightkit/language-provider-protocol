@@ -28,7 +28,7 @@ its frontend, compiler, reconstruction, or Workshop integration internally.
 
 ## Status
 
-- Protocol versions: **1.0**, additive **1.1** file-entry loading, additive **1.2** directory targets, and additive **1.3** source identity for entry-based compilation (specified in [`docs/spec/README.md`](docs/spec/README.md)).
+- Protocol versions: **1.0**, additive **1.1** file-entry loading, additive **1.2** directory targets, and additive **1.3** source identity for entry-based compilation, and additive **1.4** artifact format negotiation for `lpp/compile` (specified in [`docs/spec/README.md`](docs/spec/README.md)).
 - Repository state: initial published contract and conformance suite.
 - Wright is a client/consumer of the protocol; LPP is not a dependency from the
   language implementation back into Wright tooling internals.

@@ -9,14 +9,16 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use puzzle::{
-    ARTIFACT_FORMAT, KIND_OP, KIND_PUZZLE, ParseOutput, Range, SourceText, compile_artifact,
-    is_valid_identifier, parse_document, reconstruct_source, symbol_at, validate_edits,
+    ARTIFACT_FORMAT, COMPILE_ARTIFACT_FORMATS, KIND_OP, KIND_PUZZLE, ParseOutput, Range,
+    SUMMARY_ARTIFACT_FORMAT, SourceText, compile_artifact, is_valid_identifier, parse_document,
+    reconstruct_source, summary_artifact, symbol_at, validate_edits,
 };
 
 const DEFAULT_PROTOCOL_VERSION: &str = "1.0";
 const PROTOCOL_VERSION_1_1: &str = "1.1";
 const PROTOCOL_VERSION_1_2: &str = "1.2";
 const PROTOCOL_VERSION_1_3: &str = "1.3";
+const PROTOCOL_VERSION_1_4: &str = "1.4";
 const SERVER_NAME: &str = "lpp-mock-provider";
 const LANGUAGE_ID: &str = "x-demo-lang";
 const LANGUAGE_EXTENSIONS: [&str; 1] = ["xdl"];
@@ -96,17 +98,20 @@ impl Capabilities {
             "rename": self.rename,
             "editValidation": self.edit_validation,
         });
-        if matches!(
-            protocol_version,
-            PROTOCOL_VERSION_1_1 | PROTOCOL_VERSION_1_2 | PROTOCOL_VERSION_1_3
-        ) {
+        if since(protocol_version, PROTOCOL_VERSION_1_1) {
             capabilities["projectLoading"] = json!(self.project_loading);
         }
-        if protocol_version == PROTOCOL_VERSION_1_3 {
+        if since(protocol_version, PROTOCOL_VERSION_1_3) {
             capabilities["sourceIdentity"] = json!(self.source_identity);
         }
         capabilities
     }
+}
+
+/// True when `version` is `minimum` or a later 1.x version.
+fn since(version: &str, minimum: &str) -> bool {
+    let minor = |v: &str| v.strip_prefix("1.").and_then(|m| m.parse::<u32>().ok());
+    matches!((minor(version), minor(minimum)), (Some(v), Some(m)) if v >= m)
 }
 
 fn capability_of(method: &str) -> Option<&'static str> {
@@ -300,6 +305,7 @@ fn parse_args() -> (String, Capabilities) {
                     && version != PROTOCOL_VERSION_1_1
                     && version != PROTOCOL_VERSION_1_2
                     && version != PROTOCOL_VERSION_1_3
+                    && version != PROTOCOL_VERSION_1_4
                 {
                     eprintln!("lpp-mock-provider: unsupported protocol version '{version}'");
                     std::process::exit(2);
@@ -332,6 +338,31 @@ fn parse_args() -> (String, Capabilities) {
 }
 
 impl Server {
+    fn since(&self, minimum: &str) -> bool {
+        self.protocol_version
+            .as_deref()
+            .is_some_and(|version| since(version, minimum))
+    }
+
+    /// Reads `acceptedArtifactFormats` from `lpp/compile` params. Valid only
+    /// in LPP 1.4 sessions, as a non-empty array of strings.
+    fn accepted_artifact_formats(
+        &self,
+        params: &Value,
+    ) -> Result<Option<Vec<String>>, HandlerError> {
+        let Some(field) = params.get("acceptedArtifactFormats") else {
+            return Ok(None);
+        };
+        let invalid = || HandlerError::Std(-32602, "Invalid params");
+        if !self.since(PROTOCOL_VERSION_1_4) {
+            return Err(invalid());
+        }
+        match serde_json::from_value::<Vec<String>>(field.clone()) {
+            Ok(formats) if !formats.is_empty() => Ok(Some(formats)),
+            _ => Err(invalid()),
+        }
+    }
+
     fn handle_message(&mut self, line: &str) -> Option<Value> {
         let parsed: Value = match serde_json::from_str(line) {
             Ok(value) => value,
@@ -488,6 +519,7 @@ impl Server {
     }
 
     fn compile(&self, params: Value) -> Result<Value, HandlerError> {
+        let accepted_formats = self.accepted_artifact_formats(&params)?;
         let params: DocsParams = parse_params(params)?;
         let (documents_set, entry_uri) = documents_for_request(self, params, "lpp/compile")?;
         if entry_uri.is_none() && documents_set.len() != 1 {
@@ -519,11 +551,32 @@ impl Server {
         let artifact = if has_errors {
             Value::Null
         } else {
+            let format = match &accepted_formats {
+                None => ARTIFACT_FORMAT,
+                Some(accepted) => accepted
+                    .iter()
+                    .find_map(|accepted| {
+                        COMPILE_ARTIFACT_FORMATS
+                            .into_iter()
+                            .find(|supported| supported == accepted)
+                    })
+                    .ok_or_else(|| {
+                        HandlerError::refusal(
+                            "compile.artifactFormatUnsupported",
+                            json!({}),
+                            "none of the accepted artifact formats is supported",
+                        )
+                    })?,
+            };
             let puzzle = parsed.puzzle.as_ref().expect("no errors implies a puzzle");
             let value = puzzle.simulate().expect("no errors implies resolvable ops");
-            let content = serde_json::to_string(&compile_artifact(puzzle, value))
-                .expect("artifact serializes");
-            json!({ "format": ARTIFACT_FORMAT, "content": content })
+            let artifact = if format == SUMMARY_ARTIFACT_FORMAT {
+                summary_artifact(puzzle, value)
+            } else {
+                compile_artifact(puzzle, value)
+            };
+            let content = serde_json::to_string(&artifact).expect("artifact serializes");
+            json!({ "format": format, "content": content })
         };
         let source_identity = entry_uri.as_ref().map(|uri| {
             let mut hasher = Sha256::new();
@@ -534,9 +587,7 @@ impl Server {
             "diagnostics": diagnostics,
             "artifact": artifact,
         });
-        if self.protocol_version.as_deref() == Some(PROTOCOL_VERSION_1_3)
-            && self.caps.source_identity
-        {
+        if self.since(PROTOCOL_VERSION_1_3) && self.caps.source_identity {
             if let Some(source_identity) = source_identity {
                 result["sourceIdentity"] = Value::String(source_identity);
             }
@@ -875,12 +926,7 @@ fn documents_for_request(
     match (documents, entry) {
         (Some(documents), None) => Ok((documents, None)),
         (None, Some(entry)) => {
-            if !matches!(
-                server.protocol_version.as_deref(),
-                Some(PROTOCOL_VERSION_1_1)
-                    | Some(PROTOCOL_VERSION_1_2)
-                    | Some(PROTOCOL_VERSION_1_3)
-            ) {
+            if !server.since(PROTOCOL_VERSION_1_1) {
                 return Err(HandlerError::Std(-32602, "Invalid params"));
             }
             if !server.caps.project_loading {
@@ -912,12 +958,7 @@ fn project_target_kind(
 ) -> Result<ProjectTargetKind, HandlerError> {
     match entry.kind.as_deref() {
         None | Some("file") => Ok(ProjectTargetKind::File),
-        Some("directory")
-            if matches!(
-                protocol_version,
-                PROTOCOL_VERSION_1_2 | PROTOCOL_VERSION_1_3
-            ) =>
-        {
+        Some("directory") if since(protocol_version, PROTOCOL_VERSION_1_2) => {
             Ok(ProjectTargetKind::Directory)
         }
         Some("directory") => Err(HandlerError::Lpp(

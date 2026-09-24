@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| Protocol versions | `1.0`, `1.1`, `1.2`, `1.3` |
+| Protocol versions | `1.0`, `1.1`, `1.2`, `1.3`, `1.4` |
 | Status | Normative for protocol major version 1 |
 | Transport | JSON-RPC 2.0 over stdio, newline-delimited framing |
 | Conformance | `conformance/fixtures/v1/` + `conformance/runner` + `conformance/mock-provider` |

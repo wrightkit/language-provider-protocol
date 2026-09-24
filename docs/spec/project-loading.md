@@ -23,7 +23,7 @@ Initialization and capability negotiation. The client MUST send
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocolVersion` | string | The protocol version the client wants to speak: `"1.0"`, `"1.1"`, `"1.2"`, or `"1.3"`. |
+| `protocolVersion` | string | The protocol version the client wants to speak: `"1.0"`, `"1.1"`, `"1.2"`, `"1.3"`, or `"1.4"`. |
 | `clientInfo` | object, OPTIONAL | `{ "name": string, "version": string }` identifying the client. |
 
 ### 7.2 Result
@@ -50,10 +50,10 @@ Initialization and capability negotiation. The client MUST send
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocolVersion` | string | The protocol version the provider will speak: `"1.0"`, `"1.1"`, `"1.2"`, or `"1.3"`. |
+| `protocolVersion` | string | The protocol version the provider will speak: `"1.0"`, `"1.1"`, `"1.2"`, `"1.3"`, or `"1.4"`. |
 | `serverInfo` | object | `{ "name": string, "version": string }` identifying the provider. |
 | `languages` | array | One entry per source language the provider serves. |
-| `capabilities` | object | One boolean field per capability. LPP 1.0 requires the eight fields listed below; LPP 1.1, 1.2, and 1.3 additionally require `projectLoading`; LPP 1.3 also defines `sourceIdentity`. |
+| `capabilities` | object | One boolean field per capability. LPP 1.0 requires the eight fields listed below; LPP 1.1 through 1.4 additionally require `projectLoading`; LPP 1.3 and 1.4 also define `sourceIdentity`. |
 
 Each language entry: `{ "id": string, "extensions": [string] }`. `extensions`
 is the list of file extensions the provider associates with the language,
@@ -75,8 +75,8 @@ extension.
 | `references` | `lpp/references` | Find references to the symbol at a position. |
 | `rename` | `lpp/rename` | Compute source edits for a semantic rename. |
 | `editValidation` | `lpp/validateEdits` | Validate a set of source edits against a document. |
-| `projectLoading` | `lpp/check`, `lpp/compile` | Accept a client-selected entry or directory target and load its filesystem-backed source project. LPP 1.1, 1.2, and 1.3. |
-| `sourceIdentity` | `lpp/compile` | Return the provider-selected primary source identity for an entry-based compile result. LPP 1.3. |
+| `projectLoading` | `lpp/check`, `lpp/compile` | Accept a client-selected entry or directory target and load its filesystem-backed source project. LPP 1.1 through 1.4. |
+| `sourceIdentity` | `lpp/compile` | Return the provider-selected primary source identity for an entry-based compile result. LPP 1.3 and 1.4. |
 
 * The provider MUST set each capability to `true` only if it fully implements
   the corresponding method(s).
@@ -116,9 +116,9 @@ when practical:
 
 The client then decides whether to terminate the session or restart with a
 supported version. LPP 1.0 clients MUST send `"1.0"`; clients using file-entry
-project loading MUST send `"1.1"`, `"1.2"`, or `"1.3"`; clients using directory
-targets MUST send `"1.2"` or `"1.3"`. A client that requires the
-`sourceIdentity` capability MUST request `"1.3"` and require the provider to
+project loading MUST send `"1.1"` or later; clients using directory
+targets MUST send `"1.2"` or later. A client that requires the
+`sourceIdentity` capability MUST request `"1.3"` or later and require the provider to
 advertise `sourceIdentity: true` before using entry-based compile results.
 
 ## 8. Common request parameters
@@ -128,15 +128,15 @@ Document-scoped methods share this parameter shape:
 | Field | Type | Methods | Description |
 | --- | --- | --- | --- |
 | `documents` | DocumentSet | `check`, `compile`, `symbols`, `rename` | The documents to operate on. |
-| `entry` | Project entry | `check`, `compile` in LPP 1.1, 1.2, and 1.3 | Alternative to `documents`; asks the provider to load the source closure from the selected entry or directory target. |
+| `entry` | Project entry | `check`, `compile` in LPP 1.1 through 1.4 | Alternative to `documents`; asks the provider to load the source closure from the selected entry or directory target. |
 | `document` | Document | `definition`, `references`, `validateEdits` | The single document to operate on. |
 | `projectRoot` | string, OPTIONAL | `check`, `compile`, `symbols`, `rename` | URI identifying the project the documents belong to. Purely informational in v1; providers MUST accept and MAY use it. |
 
-### 8.1 Entry-based project requests (LPP 1.1, 1.2, and 1.3)
+### 8.1 Entry-based project requests (LPP 1.1 through 1.4)
 
-In LPP 1.1, 1.2, and 1.3, `lpp/check` and `lpp/compile` accept either `documents` or
+In LPP 1.1 through 1.4, `lpp/check` and `lpp/compile` accept either `documents` or
 `entry`, but not both. An `entry` request is available only when the provider
-accepted protocol version `1.1`, `1.2`, or `1.3` and advertised
+accepted protocol version `1.1` or later and advertised
 `projectLoading: true`.
 The optional `projectRoot` field remains legal and is informational; the
 provider accepts it but determines the effective project root and source
@@ -180,9 +180,9 @@ an LPP error of kind `projectLoadFailed`. The `details` object MUST contain
 `entryUri` and a provider-defined `reason`; a required-file failure SHOULD
 also include the affected `uri`.
 
-### 8.2 Directory project requests (LPP 1.2 and 1.3)
+### 8.2 Directory project requests (LPP 1.2 through 1.4)
 
-LPP 1.2 and 1.3 extend the `entry` object with `kind: "directory"`:
+LPP 1.2 through 1.4 extend the `entry` object with `kind: "directory"`:
 
 ```json
 {
