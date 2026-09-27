@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.3.0...v1.4.0) (2026-09-24)
+
+
+### Features
+
+* **protocol:** negotiate artifact formats in lpp/compile ([#40](https://github.com/wrightkit/language-provider-protocol/issues/40)) ([11c02d1](https://github.com/wrightkit/language-provider-protocol/commit/11c02d1617cd25080fc120c987c238381f6c861a))
+
 ## [1.3.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.2.0...v1.3.0) (2026-09-13)
 
 
