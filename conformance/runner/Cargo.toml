@@ -8,6 +8,7 @@ description = "Replays LPP v1 conformance fixtures against any provider binary"
 publish = false
 
 [dependencies]
+lpp-conformance-common = { path = "../common" }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 
