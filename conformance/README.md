@@ -1,16 +1,18 @@
 # LPP v1 Conformance Suite
 
-This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract, including the LPP 1.1 file-entry, LPP 1.2 directory-target project-loading, LPP 1.3 source-identity, and LPP 1.4 artifact-format negotiation revisions (see [`../docs/spec/README.md`](../spec/lpp-v1.md)).
+This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract, including the LPP 1.1 file-entry, LPP 1.2 directory-target project-loading, LPP 1.3 source-identity, and LPP 1.4 artifact-format negotiation revisions (see [`../docs/spec/README.md`](../docs/spec/README.md)).
 
 ## Layout
 
 ```text
-fixtures/v1/          Versioned JSON-RPC message fixtures (normative test cases)
-mock-provider/        Reference provider for the "x-demo-lang" equation DSL (Rust, stdio binary)
-runner/               Conformance runner that replays fixtures against any provider binary
+fixtures/v1/           Versioned JSON-RPC message fixtures (normative test cases)
+fixtures/v1/sessions/  Shared initialize/shutdown handshakes spliced by `"session"`
+common/                File-URI codec shared by the mock provider and runner
+mock-provider/         Reference provider for the "x-demo-lang" equation DSL (Rust, stdio binary)
+runner/                Conformance runner that replays fixtures against any provider binary
 ```
 
-* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter. The directory contains LPP 1.0, LPP 1.1, LPP 1.2, LPP 1.3, and LPP 1.4 scenarios.
+* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter. The directory contains LPP 1.0, LPP 1.1, LPP 1.2, LPP 1.3, and LPP 1.4 scenarios. `fixtures/v1/sessions/` holds the standard initialize/shutdown handshake once per protocol version; a scenario whose steps don't themselves exercise the handshake sets `"session": "<version>"` and the runner splices those steps around its own.
 * **Mock provider** (`mock-provider/`): a small Rust binary implementing the full LPP v1 surface for a demonstration language distinct from OPY and OSTW. It runs over stdio so clients (like the Wright LPP client in wrightkit/wright#142) can test against it directly.
 * **Runner** (`runner/`): spawns a fresh provider process per scenario, feeds requests over stdin, validates stdout responses against expectations, and checks the process exit code.
 
@@ -51,21 +53,26 @@ Passing this suite verifies wire protocol conformance. It does not check Worksho
   "name": "scenario-name",
   "description": "What this scenario exercises",
   "scope": "protocol | semantics",
+  "session": "1.4",
   "providerArgs": ["--without", "reconstruct"],
   "projectFiles": { "entry.xdl": "...", "support.xdl": "..." },
   "steps": [
     {
-      "request": { "jsonrpc": "2.0", "id": 1, "method": "lpp/check", "params": { } },
-      "expectResponse": { "jsonrpc": "2.0", "id": 1, "result": { } }
+      "request": { "id": 1, "method": "lpp/check", "params": { } },
+      "expectResponse": { "result": { } }
     }
-  ],
-  "expectExitCode": 0
+  ]
 }
 ```
 
 * `scope`: `protocol` scenarios exercise transport/session/negotiation
   behavior; `semantics` scenarios exercise x-demo-lang-specific behavior
   (diagnostics content, artifact content, symbol structure).
+* `session`: optional protocol version whose standard handshake is spliced
+  around `steps` from `sessions/<version>.json` — initialize before the first
+  step, shutdown after the last. A scenario must not set `session` while its
+  own steps call `lpp/initialize` or `lpp/shutdown`; session-behavior tests
+  (mismatch, double-init, notifications) keep the handshake explicit.
 * `providerArgs`: optional extra command-line arguments for the provider
   binary (used to exercise capability negotiation).
 * `projectFiles`: optional relative path/content pairs that the runner writes
@@ -75,6 +82,10 @@ Passing this suite verifies wire protocol conformance. It does not check Worksho
 * Each step has exactly one of `request` (a JSON-RPC message, serialized as a
   single line) or `rawLine` (a verbatim line, used for malformed-message
   scenarios).
+* Envelope fields may be omitted: `jsonrpc` defaults to `"2.0"` on both
+  sides, and an `expectResponse` without `id` expects the request's id (null
+  for `rawLine` steps). Scenarios that exercise a non-`"2.0"` or unusual id
+  keep the fields explicit.
 * `expectExitCode`: the provider's exit status after stdin is closed (default
   0).
 
