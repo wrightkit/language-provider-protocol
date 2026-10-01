@@ -1,0 +1,11 @@
+[package]
+name = "lpp-conformance-common"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Shared helpers for the LPP conformance suite"
+publish = false
+
+[lints]
+workspace = true

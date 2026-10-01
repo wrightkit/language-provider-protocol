@@ -1,0 +1,28 @@
+{
+  "initialize": {
+    "request": { "id": "init", "method": "lpp/initialize", "params": { "protocolVersion": "1.4" } },
+    "expectResponse": {
+      "result": {
+        "protocolVersion": "1.4",
+        "serverInfo": { "name": "lpp-mock-provider", "version": "0.1.0" },
+        "languages": [{ "id": "x-demo-lang", "extensions": ["xdl"] }],
+        "capabilities": {
+          "check": true,
+          "compile": true,
+          "reconstruct": true,
+          "symbols": true,
+          "definition": true,
+          "references": true,
+          "rename": true,
+          "editValidation": true,
+          "projectLoading": true,
+          "sourceIdentity": true
+        }
+      }
+    }
+  },
+  "shutdown": {
+    "request": { "id": "shutdown", "method": "lpp/shutdown", "params": {} },
+    "expectResponse": { "result": null }
+  }
+}

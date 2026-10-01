@@ -11,8 +11,10 @@ contract:
   initialization, capability negotiation, diagnostics, check, compile,
   reconstruct, symbols, definition, references, rename, edit validation,
   project loading, errors/refusals, protocol mismatch, malformed messages,
-  and shutdown. The same directory covers LPP 1.0, its LPP 1.1 file-entry
-  revision, its LPP 1.2 directory-target revision, its LPP 1.3
+  and shutdown. `conformance/fixtures/v1/sessions/` holds the standard
+  initialize/shutdown handshake once per protocol version, referenced by a
+  scenario's `session` field. The same directory covers LPP 1.0, its LPP 1.1
+  file-entry revision, its LPP 1.2 directory-target revision, its LPP 1.3
   source-identity revision, and its LPP 1.4 artifact-format negotiation
   revision.
 * `conformance/runner/`: a runner that replays fixtures against any provider
