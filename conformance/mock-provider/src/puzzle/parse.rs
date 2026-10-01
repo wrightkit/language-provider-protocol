@@ -124,7 +124,8 @@ impl Parser {
     }
 
     /// Consume the required `x` parameter name in an op declaration, or report
-    /// an error and recover.
+    /// an error and recover. A failed ident skips an extra line, matching the
+    /// reference behavior for malformed op declarations.
     fn expect_x(&mut self, what: &str) -> bool {
         match self.expect_ident() {
             Some((name, _)) if name == "x" => true,
@@ -132,7 +133,10 @@ impl Parser {
                 self.error(&tok, format!("{what}, found '{name}'"));
                 false
             }
-            None => false,
+            None => {
+                self.recover_line();
+                false
+            }
         }
     }
 }

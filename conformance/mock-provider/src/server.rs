@@ -102,41 +102,41 @@ impl Server {
             .into()
     }
 
-    /// Handle one newline-delimited message; `None` means no response.
-    pub(crate) fn handle_message(&mut self, line: &str) -> Option<Value> {
+    /// Handle one newline-delimited message and return the response envelope.
+    pub(crate) fn handle_message(&mut self, line: &str) -> Value {
         let parsed: Value = match serde_json::from_str(line) {
             Ok(value) => value,
-            Err(_) => return Some(std_error(Value::Null, -32700, "Parse error")),
+            Err(_) => return std_error(Value::Null, -32700, "Parse error"),
         };
         let Some(object) = parsed.as_object() else {
             // Batches are arrays; both fail as Invalid Request.
-            return Some(invalid_request());
+            return invalid_request();
         };
         if object.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
-            return Some(invalid_request());
+            return invalid_request();
         }
         let Some(method) = object.get("method").and_then(Value::as_str) else {
-            return Some(invalid_request());
+            return invalid_request();
         };
         let id = match object.get("id") {
             Some(id @ (Value::Number(_) | Value::String(_))) => id.clone(),
             // No notifications in LPP v1: a message without an id (or with a
             // null id) is a protocol violation.
             _ => {
-                return Some(lpp_error(
+                return lpp_error(
                     Value::Null,
                     "invalidRequest",
                     json!({ "reason": "notificationNotSupported" }),
                     "invalid request: LPP v1 defines no notifications",
-                ));
+                );
             }
         };
         let params = object.get("params").cloned().unwrap_or_else(|| json!({}));
-        Some(match method {
+        match method {
             "lpp/initialize" => self.initialize(&id, params),
             "lpp/shutdown" => self.shutdown(&id),
             _ => self.dispatch(&id, method, params),
-        })
+        }
     }
 
     fn initialize(&mut self, id: &Value, params: Value) -> Value {

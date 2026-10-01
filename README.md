@@ -41,6 +41,7 @@ LICENSE                      MIT License
 docs/spec/README.md               Normative LPP v1 specification
 docs/adr/                    Architecture Decision Records for material LPP choices
 conformance/README.md        Provider conformance workflow
+conformance/common/          File-URI codec shared by runner and mock provider
 conformance/fixtures/v1/     Versioned JSON-RPC message fixtures
 conformance/mock-provider/   Reference mock provider for x-demo-lang
 conformance/runner/          Conformance runner for provider binaries

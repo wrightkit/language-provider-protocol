@@ -33,7 +33,11 @@ pub(crate) fn documents_for_request(
                     "capability 'projectLoading' is not available",
                 ));
             }
-            let (documents, entry_uri) = load_project(server, &entry)?;
+            let (documents, entry_uri) = Loader {
+                server,
+                entry: &entry,
+            }
+            .run()?;
             Ok((documents, Some(entry_uri)))
         }
         _ => Err(HandlerError::invalid_params()),
@@ -217,11 +221,4 @@ impl Loader<'_> {
         }
         Ok((documents, canonical_entry_uri))
     }
-}
-
-fn load_project(
-    server: &Server,
-    entry: &ProjectEntry,
-) -> Result<(HashMap<String, Document>, String), HandlerError> {
-    Loader { server, entry }.run()
 }

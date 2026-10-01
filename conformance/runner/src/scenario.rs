@@ -58,7 +58,13 @@ pub(crate) fn read_scenario(path: &Path) -> Result<Scenario, String> {
                 .request
                 .as_ref()
                 .and_then(|r| r.get("method"))
-                .and_then(Value::as_str);
+                .and_then(Value::as_str)
+                .or_else(|| {
+                    let line = step.raw_line.as_deref()?;
+                    ["lpp/initialize", "lpp/shutdown"]
+                        .into_iter()
+                        .find(|m| line.contains(m))
+                });
             if matches!(method, Some("lpp/initialize" | "lpp/shutdown")) {
                 return Err(format!(
                     "invalid fixture: step {i}: a 'session' scenario must not step {method:?}"
@@ -100,6 +106,12 @@ fn apply_envelope_defaults(steps: &mut [Step]) {
 }
 
 fn read_session_template(path: &Path, version: &str) -> Result<SessionTemplate, String> {
+    if !version
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '.')
+    {
+        return Err(format!("session '{version}': invalid session name"));
+    }
     let file = path
         .parent()
         .unwrap_or_else(|| Path::new("."))
@@ -186,7 +198,7 @@ fn uses_project_uri(scenario: &Scenario) -> bool {
     })
 }
 
-pub(crate) fn validate_project_path(relative: &str) -> Result<(), String> {
+fn validate_project_path(relative: &str) -> Result<(), String> {
     let path = Path::new(relative);
     if relative.is_empty()
         || path.is_absolute()

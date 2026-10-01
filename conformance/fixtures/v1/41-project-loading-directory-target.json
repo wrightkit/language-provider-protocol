@@ -9,7 +9,7 @@
     "support.xdl": "puzzle support {\n  target = 2\n  start = 1\n  ops {\n    plus1: x => x + 1\n  }\n  solution = [ plus1 ]\n}\n"
   },
   "steps": [
-    {"request":{"jsonrpc":"2.0","id":2,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}","languageId":"x-demo-lang","version":7,"kind":"directory"}}},"expectResponse":{"jsonrpc":"2.0","id":2,"result":{"documents":[{"uri":"${PROJECT_URI}/entry.xdl","version":7,"diagnostics":[]},{"uri":"${PROJECT_URI}/support.xdl","version":7,"diagnostics":[]}]}}},
-    {"request":{"jsonrpc":"2.0","id":3,"method":"lpp/compile","params":{"entry":{"uri":"${PROJECT_URI}","languageId":"x-demo-lang","version":7,"kind":"directory"}}},"expectResponse":{"jsonrpc":"2.0","id":3,"result":{"diagnostics":[{"uri":"${PROJECT_URI}/entry.xdl","version":7,"diagnostics":[]},{"uri":"${PROJECT_URI}/support.xdl","version":7,"diagnostics":[]}],"artifact":{"format":"x-demo/puzzle-eval-v1","content":"{\"name\":\"entry\",\"ops\":[{\"arg\":1,\"name\":\"plus1\",\"op\":\"+\"}],\"solution\":[\"plus1\"],\"start\":1,\"target\":2,\"value\":2}"}}}}
+    {"request":{"id":2,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}","languageId":"x-demo-lang","version":7,"kind":"directory"}}},"expectResponse":{"result":{"documents":[{"uri":"${PROJECT_URI}/entry.xdl","version":7,"diagnostics":[]},{"uri":"${PROJECT_URI}/support.xdl","version":7,"diagnostics":[]}]}}},
+    {"request":{"id":3,"method":"lpp/compile","params":{"entry":{"uri":"${PROJECT_URI}","languageId":"x-demo-lang","version":7,"kind":"directory"}}},"expectResponse":{"result":{"diagnostics":[{"uri":"${PROJECT_URI}/entry.xdl","version":7,"diagnostics":[]},{"uri":"${PROJECT_URI}/support.xdl","version":7,"diagnostics":[]}],"artifact":{"format":"x-demo/puzzle-eval-v1","content":"{\"name\":\"entry\",\"ops\":[{\"arg\":1,\"name\":\"plus1\",\"op\":\"+\"}],\"solution\":[\"plus1\"],\"start\":1,\"target\":2,\"value\":2}"}}}}
   ]
 }

@@ -50,6 +50,17 @@ fn reports_duplicate_and_unresolved() {
 }
 
 #[test]
+fn malformed_op_declaration_skips_following_line() {
+    // Reference recovery behavior: a bad op parameter consumes the rest of
+    // that line AND the next line of the ops block, so `later` is never
+    // declared and the solution reference stays unresolved.
+    const SRC: &str = "puzzle t {\n  target = 2\n  start = 0\n  ops {\n    bad: 5 => x + 1\n    later: x => x * 2\n  }\n  solution = [ later ]\n}";
+    let out = parse_document(SRC);
+    let codes: Vec<&str> = out.diagnostics.iter().map(|d| d.code.as_str()).collect();
+    assert_eq!(codes, ["x-demo/syntax", "x-demo/unresolved-op"]);
+}
+
+#[test]
 fn warns_when_target_not_reached() {
     let out = parse_document(WARM);
     assert_eq!(out.diagnostics.len(), 1);

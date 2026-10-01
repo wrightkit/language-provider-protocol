@@ -37,11 +37,10 @@ fn main() {
         if message.is_empty() {
             continue;
         }
-        if let Some(response) = server.handle_message(message) {
-            let serialized = serde_json::to_string(&response).expect("response serializes");
-            writeln!(out, "{serialized}").expect("write stdout");
-            out.flush().expect("flush stdout");
-        }
+        let response = server.handle_message(message);
+        let serialized = serde_json::to_string(&response).expect("response serializes");
+        writeln!(out, "{serialized}").expect("write stdout");
+        out.flush().expect("flush stdout");
         if server.exiting {
             break;
         }
