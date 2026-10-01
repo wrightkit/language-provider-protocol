@@ -31,35 +31,49 @@ pub(crate) struct Method {
     pub handler: fn(&Server, Value) -> Result<Value, HandlerError>,
 }
 
-impl Method {
-    const fn new(
-        name: &'static str,
-        capability: &'static str,
-        handler: fn(&Server, Value) -> Result<Value, HandlerError>,
-    ) -> Self {
-        Method {
-            name,
-            capability,
-            handler,
-        }
-    }
-}
-
 /// Every `lpp/*` request method. Dispatch, capability gating, and the
 /// `Method not found` fallback all route through this table.
 pub(crate) const METHODS: &[Method] = &[
-    Method::new("lpp/check", "check", Server::check),
-    Method::new("lpp/compile", "compile", Server::compile),
-    Method::new("lpp/reconstruct", "reconstruct", Server::reconstruct),
-    Method::new("lpp/symbols", "symbols", Server::symbols),
-    Method::new("lpp/definition", "definition", Server::definition),
-    Method::new("lpp/references", "references", Server::references),
-    Method::new("lpp/rename", "rename", Server::rename),
-    Method::new(
-        "lpp/validateEdits",
-        "editValidation",
-        Server::validate_edits,
-    ),
+    Method {
+        name: "lpp/check",
+        capability: "check",
+        handler: Server::check,
+    },
+    Method {
+        name: "lpp/compile",
+        capability: "compile",
+        handler: Server::compile,
+    },
+    Method {
+        name: "lpp/reconstruct",
+        capability: "reconstruct",
+        handler: Server::reconstruct,
+    },
+    Method {
+        name: "lpp/symbols",
+        capability: "symbols",
+        handler: Server::symbols,
+    },
+    Method {
+        name: "lpp/definition",
+        capability: "definition",
+        handler: Server::definition,
+    },
+    Method {
+        name: "lpp/references",
+        capability: "references",
+        handler: Server::references,
+    },
+    Method {
+        name: "lpp/rename",
+        capability: "rename",
+        handler: Server::rename,
+    },
+    Method {
+        name: "lpp/validateEdits",
+        capability: "editValidation",
+        handler: Server::validate_edits,
+    },
 ];
 
 impl Server {
