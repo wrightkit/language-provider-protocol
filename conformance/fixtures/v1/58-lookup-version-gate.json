@@ -1,0 +1,10 @@
+{
+  "name": "lookup-version-gate",
+  "description": "lpp/lookup exists only in LPP 1.5 sessions: a 1.4 provider does not advertise it and answers the method with capabilityUnavailable.",
+  "scope": "protocol",
+  "session": "1.4",
+  "providerArgs": ["--protocol-version", "1.4"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"multiply"}},"expectResponse":{"error":{"code":-32000,"message":"capability 'lookup' is not available","data":{"lpp":{"kind":"capabilityUnavailable","details":{"capability":"lookup","method":"lpp/lookup"}}}}}}
+  ]
+}

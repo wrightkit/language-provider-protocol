@@ -12,7 +12,7 @@ use crate::rpc::{HandlerError, lpp_error, ok, parse_params, std_error};
 use crate::wire::InitParams;
 
 /// Protocol versions accepted by `--protocol-version`.
-pub(crate) const PROTOCOL_VERSIONS: [&str; 5] = ["1.0", "1.1", "1.2", "1.3", "1.4"];
+pub(crate) const PROTOCOL_VERSIONS: [&str; 6] = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5"];
 pub(crate) const DEFAULT_PROTOCOL_VERSION: &str = PROTOCOL_VERSIONS[0];
 pub(crate) const LANGUAGE_ID: &str = "x-demo-lang";
 
@@ -32,6 +32,7 @@ const CAPABILITIES: &[(&str, u32)] = &[
     ("editValidation", 0),
     ("projectLoading", 1),
     ("sourceIdentity", 3),
+    ("lookup", 5),
 ];
 
 fn minor_of(version: &str) -> Option<u32> {
@@ -87,9 +88,13 @@ impl Server {
         self.version_minor.is_some_and(|v| v >= minor)
     }
 
-    /// True when `capability` is not disabled via `--without`.
+    /// True when `capability` exists at the negotiated protocol version and
+    /// is not disabled via `--without`. Unknown names are never available.
     pub(crate) fn capability(&self, name: &str) -> bool {
-        !self.disabled.contains(name)
+        let Some(&(_, min)) = CAPABILITIES.iter().find(|(n, _)| *n == name) else {
+            return false;
+        };
+        self.since(min) && !self.disabled.contains(name)
     }
 
     fn capabilities_json(&self) -> Value {
@@ -210,7 +215,7 @@ impl Server {
     }
 
     /// Reads `acceptedArtifactFormats` from `lpp/compile` params. Valid only
-    /// in LPP 1.4 sessions, as a non-empty array of strings.
+    /// in LPP 1.4-or-later sessions, as a non-empty array of strings.
     pub(crate) fn accepted_artifact_formats(
         &self,
         params: &Value,

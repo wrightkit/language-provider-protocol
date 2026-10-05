@@ -146,7 +146,7 @@ provider-owned filesystem project load. The example below selects a file:
   filesystem snapshot for this request. It is echoed in every source result.
   It is not a filesystem content hash and does not provide cross-request stale
   detection.
-* `kind`: OPTIONAL for LPP 1.1 through 1.4. When omitted, it requests the
+* `kind`: OPTIONAL for LPP 1.1 and later. When omitted, it requests the
   existing file-entry behavior. LPP 1.2 and later clients MUST use `"directory"` when
   the provider must discover the effective project entry from a directory;
   `"file"` may be used explicitly for file-entry behavior.

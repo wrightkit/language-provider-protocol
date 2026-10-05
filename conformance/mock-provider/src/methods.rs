@@ -13,15 +13,16 @@ use sha2::{Digest, Sha256};
 
 use crate::project::documents_for_request;
 use crate::puzzle::{
-    self, ARTIFACT_FORMAT, COMPILE_ARTIFACT_FORMATS, KIND_OP, KIND_PUZZLE, ParseOutput, Position,
-    Puzzle, Range, SUMMARY_ARTIFACT_FORMAT, SourceText, Symbol, compile_artifact,
-    is_valid_identifier, parse_document, reconstruct_source, summary_artifact, symbol_at,
+    self, ARTIFACT_FORMAT, COMPILE_ARTIFACT_FORMATS, KIND_OP, KIND_PUZZLE, LookupScope,
+    ParseOutput, Position, Puzzle, Range, SUMMARY_ARTIFACT_FORMAT, SourceText, Symbol,
+    compile_artifact, is_valid_identifier, parse_document, reconstruct_source, summary_artifact,
+    symbol_at,
 };
 use crate::rpc::{HandlerError, parse_params};
 use crate::server::{LANGUAGE_ID, Server};
 use crate::wire::{
-    DocsParams, Document, PositionParams, ReconstructParams, ReferencesParams, RenameParams,
-    ValidateEditsParams,
+    DocsParams, Document, LookupParams, PositionParams, ReconstructParams, ReferencesParams,
+    RenameParams, ValidateEditsParams,
 };
 
 /// A dispatchable `lpp/*` method: wire name, gating capability, handler.
@@ -74,6 +75,11 @@ pub(crate) const METHODS: &[Method] = &[
         capability: "editValidation",
         handler: Server::validate_edits,
     },
+    Method {
+        name: "lpp/lookup",
+        capability: "lookup",
+        handler: Server::lookup,
+    },
 ];
 
 impl Server {
@@ -125,7 +131,7 @@ impl Server {
             json!({ "format": format, "content": content })
         };
         let mut result = json!({ "diagnostics": diagnostics, "artifact": artifact });
-        if self.since(3) && self.capability("sourceIdentity") {
+        if self.capability("sourceIdentity") {
             if let Some(uri) = &entry_uri {
                 result["sourceIdentity"] = json!(sha256_hex(&documents[uri].text));
             }
@@ -325,7 +331,50 @@ impl Server {
             }
         }
     }
+
+    fn lookup(&self, params: Value) -> Result<Value, HandlerError> {
+        let params: LookupParams = parse_params(params)?;
+        if params.language_id != LANGUAGE_ID {
+            return Err(HandlerError::lpp(
+                "invalidLanguage",
+                json!({ "languageId": params.language_id }),
+                format!(
+                    "language '{}' is not served by this provider",
+                    params.language_id
+                ),
+            ));
+        }
+        if matches!(params.limit, Some(0)) {
+            return Err(HandlerError::invalid_params());
+        }
+        let scope = match params.within.as_ref() {
+            None => LookupScope::All,
+            Some(within) => match within.kind.as_str() {
+                "callable" => LookupScope::Callable(within.value.clone()),
+                "enum" => LookupScope::Enum(within.value.clone()),
+                "settings" => LookupScope::Settings(within.value.clone()),
+                _ => return Err(HandlerError::invalid_params()),
+            },
+        };
+        let entries = puzzle::lookup(
+            params.query.as_deref().unwrap_or_default(),
+            params.kind.as_deref(),
+            &scope,
+            params.limit.unwrap_or(DEFAULT_LOOKUP_LIMIT) as usize,
+        )
+        .ok_or_else(|| {
+            HandlerError::refusal(
+                "lookup.unknownWithin",
+                json!({ "within": params.within }),
+                "within selector names no known scope",
+            )
+        })?;
+        Ok(json!({ "entries": entries }))
+    }
 }
+
+/// The provider-side bound applied when a request omits `limit`.
+const DEFAULT_LOOKUP_LIMIT: u32 = 20;
 
 #[derive(Debug)]
 enum RenameTarget {

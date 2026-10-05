@@ -1,0 +1,10 @@
+{
+  "name": "compile-accepted-format-inherited",
+  "description": "LPP 1.5 inherits 1.4 artifact format negotiation: acceptedArtifactFormats stays valid in a 1.5 session and selects the first producible format.",
+  "scope": "semantics",
+  "session": "1.5",
+  "providerArgs": ["--protocol-version", "1.5"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/compile","params":{"documents":{"file:///project/puzzle.xdl":{"uri":"file:///project/puzzle.xdl","languageId":"x-demo-lang","version":3,"text":"puzzle clean {\n  target = 40\n  start = 10\n  ops {\n    double: x => x * 2\n    plus1: x => x + 1\n  }\n  solution = [ double, double ]\n}"}},"acceptedArtifactFormats":["x-demo/unknown-v9","x-demo/puzzle-summary-v1","x-demo/puzzle-eval-v1"]}},"expectResponse":{"result":{"diagnostics":[{"uri":"file:///project/puzzle.xdl","version":3,"diagnostics":[]}],"artifact":{"format":"x-demo/puzzle-summary-v1","content":"{\"name\":\"clean\",\"value\":40}"}}}}
+  ]
+}

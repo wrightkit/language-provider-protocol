@@ -1,0 +1,12 @@
+{
+  "name": "lookup-within-enum",
+  "description": "within kind 'enum' lists the member spellings of the named domain in domain order; the query filters the members and a non-domain value is refused.",
+  "scope": "semantics",
+  "session": "1.5",
+  "providerArgs": ["--protocol-version", "1.5"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"enum","value":"x-demo:enum/operator"}}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:enum/operator/+","kind":"enumMember","spelling":"+","displayName":"add"},{"identity":"x-demo:enum/operator/-","kind":"enumMember","spelling":"-","displayName":"subtract"},{"identity":"x-demo:enum/operator/*","kind":"enumMember","spelling":"*","displayName":"multiply"},{"identity":"x-demo:enum/operator//","kind":"enumMember","spelling":"/","displayName":"divide"}]}}},
+    {"request":{"id":3,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"mu","within":{"kind":"enum","value":"x-demo:enum/operator"}}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:enum/operator/*","kind":"enumMember","spelling":"*","displayName":"multiply"}]}}},
+    {"request":{"id":4,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"enum","value":"x-demo:setting/target"}}},"expectResponse":{"error":{"code":-32000,"message":"within selector names no known scope","data":{"lpp":{"kind":"refusal","details":{"refusalCode":"lookup.unknownWithin","within":{"kind":"enum","value":"x-demo:setting/target"}}}}}}}
+  ]
+}

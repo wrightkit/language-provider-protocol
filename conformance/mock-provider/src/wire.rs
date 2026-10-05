@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::puzzle::{Position, Range};
 
@@ -87,6 +87,30 @@ pub(crate) struct RenameParams {
     pub new_name: String,
     #[allow(dead_code)]
     pub project_root: Option<String>,
+}
+
+/// `within` selector for `lpp/lookup`: names the scope whose children the
+/// result lists. `kind` is validated against the closed set in the handler.
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LookupWithin {
+    pub kind: String,
+    pub value: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LookupParams {
+    pub language_id: String,
+    pub query: Option<String>,
+    pub kind: Option<String>,
+    /// Echoed in `lookup.unknownWithin` refusal details.
+    pub within: Option<LookupWithin>,
+    /// Accepted for forward compatibility; the demo language only serves its
+    /// default locale.
+    #[allow(dead_code)]
+    pub locale: Option<String>,
+    pub limit: Option<u32>,
 }
 
 #[derive(Deserialize)]

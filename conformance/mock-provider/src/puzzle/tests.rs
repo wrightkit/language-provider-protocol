@@ -1,4 +1,5 @@
 use super::artifact::{compile_artifact, reconstruct_source};
+use super::catalog::{LookupScope, lookup};
 use super::edits::{EditValidation, validate_edits};
 use super::parse::parse_document;
 use super::text::{Position, Range, SourceText};
@@ -136,4 +137,67 @@ fn validate_edits_accepts_rename_edits() {
         validate_edits(CLEAN, &edits),
         EditValidation::Valid
     ));
+}
+
+#[test]
+fn lookup_ranks_tiers_then_catalog_order() {
+    // "a": prefix match on "add" and "arithmetic operator" (tier 1); substring
+    // on "subtract", "target", "start" (tier 2); ties keep catalog order.
+    let entries = lookup("a", None, &LookupScope::All, 20).expect("all scope");
+    let ids: Vec<&str> = entries
+        .iter()
+        .filter_map(|e| e["identity"].as_str())
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            "x-demo:operator/add",
+            "x-demo:enum/operator",
+            "x-demo:operator/subtract",
+            "x-demo:setting/target",
+            "x-demo:setting/start",
+        ]
+    );
+}
+
+#[test]
+fn lookup_within_scopes_children() {
+    // Enum scope lists member spellings in domain order.
+    let members = lookup(
+        "",
+        None,
+        &LookupScope::Enum("x-demo:enum/operator".into()),
+        20,
+    )
+    .expect("known domain");
+    let spellings: Vec<&str> = members
+        .iter()
+        .filter_map(|e| e["spelling"].as_str())
+        .collect();
+    assert_eq!(spellings, ["+", "-", "*", "/"]);
+
+    // Callable scope lists the callable's parameters in call order.
+    let params = lookup(
+        "",
+        None,
+        &LookupScope::Callable("x-demo:operator/add".into()),
+        20,
+    )
+    .expect("known callable");
+    assert_eq!(params.len(), 1);
+    assert_eq!(params[0]["spelling"], "arg");
+    assert_eq!(params[0]["parameter"]["required"], true);
+}
+
+#[test]
+fn lookup_unknown_within_is_none() {
+    // A non-callable identity, an unknown identity, and a leaf settings path
+    // each name no scope.
+    for scope in [
+        LookupScope::Callable("x-demo:keyword/ops".into()),
+        LookupScope::Enum("x-demo:setting/target".into()),
+        LookupScope::Settings("target".into()),
+    ] {
+        assert!(lookup("", None, &scope, 20).is_none());
+    }
 }

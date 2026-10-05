@@ -19,6 +19,7 @@ material process or wire-boundary decision.
 | [0002](0002-directory-project-targets.md) | Provider-owned directory project targets | Accepted | 2026-09-12 | 2026-09-14 | [PR #32](https://github.com/wrightkit/language-provider-protocol/pull/32) |
 | [0003](0003-owner-selected-source-identity.md) | Owner-selected source identity for entry compilation | Accepted | 2026-09-13 | 2026-09-14 | [PR #34](https://github.com/wrightkit/language-provider-protocol/pull/34) |
 | [0004](0004-artifact-format-negotiation.md) | Client-stated artifact format negotiation for `lpp/compile` | Accepted | 2026-09-24 | 2026-09-24 | [Issue #39](https://github.com/wrightkit/language-provider-protocol/issues/39), [workshop-rs#271](https://github.com/wrightkit/workshop-rs/issues/271) |
+| [0005](0005-name-lookup.md) | Provider-owned name lookup via `lpp/lookup` | Accepted | 2026-10-05 | 2026-10-05 | [Issue #45](https://github.com/wrightkit/language-provider-protocol/issues/45), [wright#482](https://github.com/wrightkit/wright/issues/482) |
 
 ## Post-baseline audit
 

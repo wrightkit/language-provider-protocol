@@ -1,0 +1,11 @@
+{
+  "name": "lookup-determinism",
+  "description": "The same lookup request returns the same entries in the same order; tied matches keep a stable provider-defined order.",
+  "scope": "semantics",
+  "session": "1.5",
+  "providerArgs": ["--protocol-version", "1.5"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"s"}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:keyword/solution","kind":"keyword","spelling":"solution","displayName":"solution"},{"identity":"x-demo:operator/subtract","kind":"operator","spelling":"-","displayName":"subtract","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:setting/start","kind":"setting","spelling":"start","displayName":"start","setting":{"type":"integer"}},{"identity":"x-demo:keyword/ops","kind":"keyword","spelling":"ops","displayName":"ops"}]}}},
+    {"request":{"id":3,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"s"}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:keyword/solution","kind":"keyword","spelling":"solution","displayName":"solution"},{"identity":"x-demo:operator/subtract","kind":"operator","spelling":"-","displayName":"subtract","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:setting/start","kind":"setting","spelling":"start","displayName":"start","setting":{"type":"integer"}},{"identity":"x-demo:keyword/ops","kind":"keyword","spelling":"ops","displayName":"ops"}]}}}
+  ]
+}

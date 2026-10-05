@@ -49,8 +49,8 @@ analyze every document in the set and MUST report all diagnostics found.
 
 ## 10. lpp/compile
 
-Compile a document set into a single Workshop artifact. In LPP 1.1 through
-1.4, an entry-based request compiles the provider-loaded source closure as one
+Compile a document set into a single Workshop artifact. In LPP 1.1 and
+later, an entry-based request compiles the provider-loaded source closure as one
 unit;
 the `compile.requiresSingleDocument` refusal applies only to a
 document-supplied request that contains more than one document.
@@ -69,10 +69,10 @@ document-supplied request that contains more than one document.
 }
 ```
 
-* `acceptedArtifactFormats`: OPTIONAL, defined only in LPP 1.4. A non-empty
+* `acceptedArtifactFormats`: OPTIONAL, defined in LPP 1.4 and later. A non-empty
   array of artifact format id strings, ordered from most to least preferred.
   It states which formats the client can consume; see
-  [Section 10.3](#103-artifact-format-negotiation-lpp-14). The
+  [Section 10.3](#103-artifact-format-negotiation-lpp-14-and-later). The
   field applies to both `documents` and `entry` requests.
 
 ### 10.2 Result
@@ -87,7 +87,7 @@ document-supplied request that contains more than one document.
 ```
 
 * `diagnostics`: same shape as the `lpp/check` result.
-* `sourceIdentity`: defined only in LPP 1.3 and 1.4. In an LPP 1.3 or 1.4 session, the
+* `sourceIdentity`: defined only in LPP 1.3 and later. In an LPP 1.3 or later session, the
   provider MUST advertise the `sourceIdentity` capability. If it advertises
   `sourceIdentity: true`, an entry-based compile result MUST include a
   lower-case SHA-256 hex digest of the provider-selected primary source text.
@@ -117,7 +117,7 @@ prefix format ids with a language or provider identifier (for example
 ecosystem decision owned outside this specification; LPP will not freeze one
 without concrete evidence.
 
-### 10.3 Artifact format negotiation (LPP 1.4)
+### 10.3 Artifact format negotiation (LPP 1.4 and later)
 
 `acceptedArtifactFormats` lets a client state which artifact formats it can
 consume so a provider can return a richer format when the client supports it.
@@ -139,12 +139,12 @@ opaque `format`/`content` envelope.
 * Format ids are matched exactly and are not interpreted. Unknown ids MUST be
   skipped, not rejected.
 * Version gate: the field is valid only in a session that negotiated protocol
-  version `"1.4"`. In any earlier session, a request that contains it MUST be
-  rejected with JSON-RPC `-32602` (Invalid params); the provider MUST NOT
-  ignore the field. In a 1.4 session, a value that is not a non-empty array of
-  strings MUST also be rejected with `-32602`.
-* A provider that negotiates `"1.4"` MUST implement this behavior. There is no
-  separate capability id.
+  version `"1.4"` or later. In any earlier session, a request that contains it
+  MUST be rejected with JSON-RPC `-32602` (Invalid params); the provider MUST
+  NOT ignore the field. In a 1.4-or-later session, a value that is not a
+  non-empty array of strings MUST also be rejected with `-32602`.
+* A provider that negotiates `"1.4"` or later MUST implement this behavior.
+  There is no separate capability id.
 
 ## 11. lpp/reconstruct
 
