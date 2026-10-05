@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.4.0...v1.5.0) (2026-10-05)
+
+
+### Features
+
+* **protocol:** add name lookup via lpp/lookup ([#46](https://github.com/wrightkit/language-provider-protocol/issues/46)) ([2c21470](https://github.com/wrightkit/language-provider-protocol/commit/2c21470186ae214b4e356a4f997025259479f337))
+
 ## [1.4.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.3.0...v1.4.0) (2026-09-24)
 
 
