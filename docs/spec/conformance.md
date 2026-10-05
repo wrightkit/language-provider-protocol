@@ -15,8 +15,8 @@ contract:
   initialize/shutdown handshake once per protocol version, referenced by a
   scenario's `session` field. The same directory covers LPP 1.0, its LPP 1.1
   file-entry revision, its LPP 1.2 directory-target revision, its LPP 1.3
-  source-identity revision, and its LPP 1.4 artifact-format negotiation
-  revision.
+  source-identity revision, its LPP 1.4 artifact-format negotiation
+  revision, and its LPP 1.5 name-lookup revision.
 * `conformance/runner/`: a runner that replays fixtures against any provider
   binary and compares responses exactly.
 * `conformance/mock-provider/`: the reference provider for the demonstration
@@ -45,6 +45,7 @@ Methods:
 | `lpp/references` | `references` | `{ document, position, includeDeclaration }` | `{ locations }` |
 | `lpp/rename` | `rename` | `{ documents, positionDocumentUri, position, newName, projectRoot? }` | `{ edits: [{ documentUri, version, textEdits }] }` |
 | `lpp/validateEdits` | `editValidation` | `{ document, edits }` | `{ valid, version, reason?, failingEditIndex? }` |
+| `lpp/lookup` | `lookup` (LPP 1.5) | `{ languageId, query?, kind?, within?, locale?, limit? }` | `{ entries: [{ identity, kind, spelling, displayName, callable?, enum?, parameter?, setting? }] }` |
 
 Types: `Position`, `Range`, `TextEdit`, `Document`, `DocumentSet`, `ProjectEntry`,
 `Diagnostic`, `Location`, `Symbol`, `WorkshopArtifact` (see
@@ -65,6 +66,7 @@ provider-defined codes; other providers MAY use different codes.
 | `rename.noSymbolAtPosition` | No symbol at the given position. |
 | `rename.invalidName` | The new name is not a valid identifier. |
 | `rename.nameCollision` | The new name collides with an existing symbol. |
+| `lookup.unknownWithin` | The `within` selector names no scope the provider knows. |
 
 ## Appendix C: Example session transcript
 

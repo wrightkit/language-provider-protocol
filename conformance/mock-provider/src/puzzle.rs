@@ -6,6 +6,7 @@
 use serde::Serialize;
 
 mod artifact;
+mod catalog;
 mod edits;
 mod lex;
 mod parse;
@@ -15,6 +16,7 @@ pub(crate) use artifact::{
     ARTIFACT_FORMAT, COMPILE_ARTIFACT_FORMATS, SUMMARY_ARTIFACT_FORMAT, compile_artifact,
     reconstruct_source, summary_artifact,
 };
+pub(crate) use catalog::{LookupScope, lookup};
 pub(crate) use edits::{EditValidation, validate_edits};
 pub(crate) use parse::parse_document;
 pub(crate) use text::{Position, Range, SourceText};

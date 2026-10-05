@@ -1,0 +1,12 @@
+{
+  "name": "lookup-within-callable",
+  "description": "within kind 'callable' lists one entry per parameter of the named callable in call order; a value that names no callable is refused.",
+  "scope": "semantics",
+  "session": "1.5",
+  "providerArgs": ["--protocol-version", "1.5"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"callable","value":"x-demo:operator/multiply"}}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:operator/multiply/arg","kind":"parameter","spelling":"arg","displayName":"arg","parameter":{"type":"integer","required":true}}]}}},
+    {"request":{"id":3,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"callable","value":"x-demo:keyword/ops"}}},"expectResponse":{"error":{"code":-32000,"message":"within selector names no known scope","data":{"lpp":{"kind":"refusal","details":{"refusalCode":"lookup.unknownWithin","within":{"kind":"callable","value":"x-demo:keyword/ops"}}}}}}},
+    {"request":{"id":4,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"callable","value":"x-demo:operator/floor"}}},"expectResponse":{"error":{"code":-32000,"message":"within selector names no known scope","data":{"lpp":{"kind":"refusal","details":{"refusalCode":"lookup.unknownWithin","within":{"kind":"callable","value":"x-demo:operator/floor"}}}}}}}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "lookup-limit",
+  "description": "Results are always bounded: limit truncates ranked and scoped entries, and a request with no query lists the catalog in the provider's stable order.",
+  "scope": "semantics",
+  "session": "1.5",
+  "providerArgs": ["--protocol-version", "1.5"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"a","limit":2}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:operator/add","kind":"operator","spelling":"+","displayName":"add","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:enum/operator","kind":"enum","spelling":"operator","displayName":"arithmetic operator","enum":{"domain":"x-demo:enum/operator","members":["+","-","*","/"]}}]}}},
+    {"request":{"id":3,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","limit":3}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:keyword/puzzle","kind":"keyword","spelling":"puzzle","displayName":"puzzle"},{"identity":"x-demo:keyword/ops","kind":"keyword","spelling":"ops","displayName":"ops"},{"identity":"x-demo:keyword/solution","kind":"keyword","spelling":"solution","displayName":"solution"}]}}},
+    {"request":{"id":4,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"enum","value":"x-demo:enum/operator"},"limit":1}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:enum/operator/+","kind":"enumMember","spelling":"+","displayName":"add"}]}}}
+  ]
+}

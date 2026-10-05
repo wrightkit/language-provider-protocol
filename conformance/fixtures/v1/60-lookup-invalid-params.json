@@ -1,0 +1,14 @@
+{
+  "name": "lookup-invalid-params",
+  "description": "Malformed lookup params are rejected with -32602: limit outside its bound, a within kind outside the closed set, and missing required fields.",
+  "scope": "protocol",
+  "session": "1.5",
+  "providerArgs": ["--protocol-version", "1.5"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"a","limit":0}},"expectResponse":{"error":{"code":-32602,"message":"Invalid params"}}},
+    {"request":{"id":3,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"bogus","value":"x-demo:enum/operator"}}},"expectResponse":{"error":{"code":-32602,"message":"Invalid params"}}},
+    {"request":{"id":4,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"enum"}}},"expectResponse":{"error":{"code":-32602,"message":"Invalid params"}}},
+    {"request":{"id":5,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","limit":"3"}},"expectResponse":{"error":{"code":-32602,"message":"Invalid params"}}},
+    {"request":{"id":6,"method":"lpp/lookup","params":{"query":"a"}},"expectResponse":{"error":{"code":-32602,"message":"Invalid params"}}}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "lookup-kind",
+  "description": "The kind selector restricts results to one provider-defined entry kind, composing with the query; an unused kind matches nothing.",
+  "scope": "semantics",
+  "session": "1.5",
+  "providerArgs": ["--protocol-version", "1.5"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","kind":"operator"}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:operator/add","kind":"operator","spelling":"+","displayName":"add","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:operator/subtract","kind":"operator","spelling":"-","displayName":"subtract","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:operator/multiply","kind":"operator","spelling":"*","displayName":"multiply","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:operator/divide","kind":"operator","spelling":"/","displayName":"divide","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}}]}}},
+    {"request":{"id":3,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"a","kind":"operator"}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:operator/add","kind":"operator","spelling":"+","displayName":"add","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:operator/subtract","kind":"operator","spelling":"-","displayName":"subtract","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}}]}}},
+    {"request":{"id":4,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","kind":"no-such-kind"}},"expectResponse":{"result":{"entries":[]}}}
+  ]
+}

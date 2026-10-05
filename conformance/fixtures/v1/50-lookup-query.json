@@ -1,0 +1,13 @@
+{
+  "name": "lookup-query",
+  "description": "lpp/lookup resolves a free-text query against the provider's vocabulary: results are ranked exact, prefix, then substring, and an unsupported locale falls back deterministically.",
+  "scope": "semantics",
+  "session": "1.5",
+  "providerArgs": ["--protocol-version", "1.5"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"a"}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:operator/add","kind":"operator","spelling":"+","displayName":"add","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:enum/operator","kind":"enum","spelling":"operator","displayName":"arithmetic operator","enum":{"domain":"x-demo:enum/operator","members":["+","-","*","/"]}},{"identity":"x-demo:operator/subtract","kind":"operator","spelling":"-","displayName":"subtract","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:setting/target","kind":"setting","spelling":"target","displayName":"target","setting":{"type":"integer"}},{"identity":"x-demo:setting/start","kind":"setting","spelling":"start","displayName":"start","setting":{"type":"integer"}}]}}},
+    {"request":{"id":3,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"multiply"}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:operator/multiply","kind":"operator","spelling":"*","displayName":"multiply","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}}]}}},
+    {"request":{"id":4,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"a","locale":"fr"}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:operator/add","kind":"operator","spelling":"+","displayName":"add","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:enum/operator","kind":"enum","spelling":"operator","displayName":"arithmetic operator","enum":{"domain":"x-demo:enum/operator","members":["+","-","*","/"]}},{"identity":"x-demo:operator/subtract","kind":"operator","spelling":"-","displayName":"subtract","callable":{"receiver":"integer","parameters":[{"name":"arg","type":"integer","required":true}]}},{"identity":"x-demo:setting/target","kind":"setting","spelling":"target","displayName":"target","setting":{"type":"integer"}},{"identity":"x-demo:setting/start","kind":"setting","spelling":"start","displayName":"start","setting":{"type":"integer"}}]}}},
+    {"request":{"id":5,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"zzz"}},"expectResponse":{"result":{"entries":[]}}}
+  ]
+}

@@ -49,8 +49,8 @@ analyze every document in the set and MUST report all diagnostics found.
 
 ## 10. lpp/compile
 
-Compile a document set into a single Workshop artifact. In LPP 1.1 through
-1.4, an entry-based request compiles the provider-loaded source closure as one
+Compile a document set into a single Workshop artifact. In LPP 1.1 and
+later, an entry-based request compiles the provider-loaded source closure as one
 unit;
 the `compile.requiresSingleDocument` refusal applies only to a
 document-supplied request that contains more than one document.
@@ -87,7 +87,7 @@ document-supplied request that contains more than one document.
 ```
 
 * `diagnostics`: same shape as the `lpp/check` result.
-* `sourceIdentity`: defined only in LPP 1.3 and 1.4. In an LPP 1.3 or 1.4 session, the
+* `sourceIdentity`: defined only in LPP 1.3 and later. In an LPP 1.3 or later session, the
   provider MUST advertise the `sourceIdentity` capability. If it advertises
   `sourceIdentity: true`, an entry-based compile result MUST include a
   lower-case SHA-256 hex digest of the provider-selected primary source text.

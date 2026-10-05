@@ -1,6 +1,6 @@
 # LPP v1 Conformance Suite
 
-This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract, including the LPP 1.1 file-entry, LPP 1.2 directory-target project-loading, LPP 1.3 source-identity, and LPP 1.4 artifact-format negotiation revisions (see [`../docs/spec/README.md`](../docs/spec/README.md)).
+This directory contains the test suite and fixtures for the Language Provider Protocol v1 wire contract, including the LPP 1.1 file-entry, LPP 1.2 directory-target project-loading, LPP 1.3 source-identity, LPP 1.4 artifact-format negotiation, and LPP 1.5 name-lookup revisions (see [`../docs/spec/README.md`](../docs/spec/README.md)).
 
 ## Layout
 
@@ -12,7 +12,7 @@ mock-provider/         Reference provider for the "x-demo-lang" equation DSL (Ru
 runner/                Conformance runner that replays fixtures against any provider binary
 ```
 
-* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter. The directory contains LPP 1.0, LPP 1.1, LPP 1.2, LPP 1.3, and LPP 1.4 scenarios. `fixtures/v1/sessions/` holds the standard initialize/shutdown handshake once per protocol version; a scenario whose steps don't themselves exercise the handshake sets `"session": "<version>"` and the runner splices those steps around its own.
+* **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter. The directory contains LPP 1.0, LPP 1.1, LPP 1.2, LPP 1.3, LPP 1.4, and LPP 1.5 scenarios. `fixtures/v1/sessions/` holds the standard initialize/shutdown handshake once per protocol version; a scenario whose steps don't themselves exercise the handshake sets `"session": "<version>"` and the runner splices those steps around its own.
 * **Mock provider** (`mock-provider/`): a small Rust binary implementing the full LPP v1 surface for a demonstration language distinct from OPY and OSTW. It runs over stdio so clients (like the Wright LPP client in wrightkit/wright#142) can test against it directly.
 * **Runner** (`runner/`): spawns a fresh provider process per scenario, feeds requests over stdin, validates stdout responses against expectations, and checks the process exit code.
 
@@ -125,6 +125,10 @@ Semantics exercised by the fixtures:
   received document set.
 * **validateEdits**: normative edit application rules from spec section 16.3:
   bounds checks, overlap detection, application, and re-parsing.
+* **lookup**: the `x-demo-lang` vocabulary — section keywords, the `target`
+  and `start` settings, and the arithmetic operators, which form the
+  `x-demo:enum/operator` enum domain — returned as ranked entries with
+  callable, enum-domain, parameter, and setting facts.
 
 The mock provider binary accepts `--without <capability>,...` to disable
 capabilities at runtime, which the capability-negotiation fixtures use. A

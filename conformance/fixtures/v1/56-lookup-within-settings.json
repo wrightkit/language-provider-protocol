@@ -1,0 +1,12 @@
+{
+  "name": "lookup-within-settings",
+  "description": "within kind 'settings' lists the settings directly below a path prefix; an empty prefix lists the root and a leaf setting names no scope.",
+  "scope": "semantics",
+  "session": "1.5",
+  "providerArgs": ["--protocol-version", "1.5"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"settings","value":""}}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:setting/target","kind":"setting","spelling":"target","displayName":"target","setting":{"type":"integer"}},{"identity":"x-demo:setting/start","kind":"setting","spelling":"start","displayName":"start","setting":{"type":"integer"}}]}}},
+    {"request":{"id":3,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"targ","within":{"kind":"settings","value":""}}},"expectResponse":{"result":{"entries":[{"identity":"x-demo:setting/target","kind":"setting","spelling":"target","displayName":"target","setting":{"type":"integer"}}]}}},
+    {"request":{"id":4,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","within":{"kind":"settings","value":"target"}}},"expectResponse":{"error":{"code":-32000,"message":"within selector names no known scope","data":{"lpp":{"kind":"refusal","details":{"refusalCode":"lookup.unknownWithin","within":{"kind":"settings","value":"target"}}}}}}}
+  ]
+}
