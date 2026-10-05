@@ -215,7 +215,7 @@ impl Server {
     }
 
     /// Reads `acceptedArtifactFormats` from `lpp/compile` params. Valid only
-    /// in LPP 1.4 sessions, as a non-empty array of strings.
+    /// in LPP 1.4-or-later sessions, as a non-empty array of strings.
     pub(crate) fn accepted_artifact_formats(
         &self,
         params: &Value,
