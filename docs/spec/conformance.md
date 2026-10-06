@@ -60,7 +60,9 @@ Two positions carry extra fixture rules:
   advertises an undeclared id still fails, while a response that omits ids
   it does not offer passes, since absent means not advertised. A scenario
   asserting a specific negotiated subset — such as one configured through
-  `providerArgs` — keeps its capability map verbatim instead.
+  `providerArgs` — keeps its capability map verbatim instead, and a verbatim
+  map keeps exact key matching: asserting `reconstruct: false` fails when
+  the provider omits `reconstruct` entirely.
 * `details.reason` may be marked only under the error kinds whose values the
   spec does not enumerate; the `invalidRequest` reasons are a closed set and
   stay verbatim.

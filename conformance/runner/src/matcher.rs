@@ -206,11 +206,16 @@ fn match_at(expected: &Value, actual: &Value, path: &str) -> Result<(), String> 
     }
     match (expected, actual) {
         (Value::Object(expected), Value::Object(actual)) => {
+            // §7.3: a provider may advertise any capability subset — an absent
+            // id means not offered, equivalent to `false`. The exemption only
+            // applies to a fully marker-checked capabilities object; a
+            // verbatim map (a `providerArgs` scenario asserting an explicit
+            // negotiated map, false keys included) keeps exact key matching.
+            let subset_mode = path == CAPABILITIES_PATH
+                && expected.values().all(|value| marker_kind(value).is_some());
             for (key, expected_value) in expected {
                 let Some(actual_value) = actual.get(key) else {
-                    // §7.3: an absent capability id means not advertised —
-                    // equivalent to `false`. Everywhere else keys are required.
-                    if path == CAPABILITIES_PATH {
+                    if subset_mode {
                         continue;
                     }
                     return Err(format!("{path}: missing key '{key}'"));
@@ -420,6 +425,27 @@ mod tests {
                 &json!({"result": {"capabilities": {"check": "yes"}}})
             )
             .is_err()
+        );
+    }
+
+    #[test]
+    fn verbatim_capability_map_keeps_exact_keys() {
+        // A `providerArgs` scenario asserting `reconstruct: false` must not
+        // pass when the provider omits `reconstruct` entirely.
+        let expected = json!({"result": {"capabilities": {"check": true, "reconstruct": false}}});
+        assert!(
+            matches(
+                &expected,
+                &json!({"result": {"capabilities": {"check": true}}})
+            )
+            .is_err()
+        );
+        assert!(
+            matches(
+                &expected,
+                &json!({"result": {"capabilities": {"check": true, "reconstruct": false}}})
+            )
+            .is_ok()
         );
     }
 
