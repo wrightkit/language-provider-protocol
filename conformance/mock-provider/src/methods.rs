@@ -92,7 +92,7 @@ impl Server {
     }
 
     fn compile(&self, params: Value) -> Result<Value, HandlerError> {
-        let accepted = self.accepted_artifact_formats(&params)?;
+        let accepted = accepted_artifact_formats(self, &params)?;
         let (documents, entry_uri) =
             documents_for_request(self, parse_params(params)?, "lpp/compile")?;
         if entry_uri.is_none() && documents.len() != 1 {
@@ -348,6 +348,24 @@ impl Server {
 
 /// The provider-side bound applied when a request omits `limit`.
 const DEFAULT_LOOKUP_LIMIT: u32 = 20;
+
+/// Reads `acceptedArtifactFormats` from `lpp/compile` params. Valid only
+/// in LPP 1.4-or-later sessions, as a non-empty array of strings.
+fn accepted_artifact_formats(
+    server: &Server,
+    params: &Value,
+) -> Result<Option<Vec<String>>, HandlerError> {
+    let Some(field) = params.get("acceptedArtifactFormats") else {
+        return Ok(None);
+    };
+    if !server.since(4) {
+        return Err(HandlerError::invalid_params());
+    }
+    match serde_json::from_value::<Vec<String>>(field.clone()) {
+        Ok(formats) if !formats.is_empty() => Ok(Some(formats)),
+        _ => Err(HandlerError::invalid_params()),
+    }
+}
 
 fn select_artifact_format(accepted: Option<Vec<String>>) -> Result<&'static str, HandlerError> {
     match accepted {

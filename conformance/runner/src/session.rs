@@ -10,9 +10,8 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
-use crate::scenario::{
-    ProjectFixture, Scenario, Step, materialize_project, substitute_project_uri,
-};
+use crate::project_fixture::{ProjectFixture, materialize_project, substitute_project_uri};
+use crate::scenario::{Scenario, Step, StepRequest};
 
 const STEP_TIMEOUT: Duration = Duration::from_secs(10);
 const EXIT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -44,7 +43,7 @@ pub(crate) fn run_scenario(
     });
 
     for (i, step) in scenario.steps.iter().enumerate() {
-        let request_line = step_request_line(step, project.as_ref())?;
+        let request_line = step_request_line(step, project.as_ref());
         if writeln!(stdin, "{request_line}")
             .and_then(|_| stdin.flush())
             .is_err()
@@ -106,14 +105,13 @@ pub(crate) fn run_scenario(
     Ok(())
 }
 
-fn step_request_line(step: &Step, project: Option<&ProjectFixture>) -> Result<String, String> {
-    match (&step.request, &step.raw_line) {
-        (Some(request), None) => Ok(serde_json::to_string(&substitute_project_uri(
-            request, project,
-        ))
-        .expect("request serializes")),
-        (None, Some(raw)) => Ok(raw.clone()),
-        _ => unreachable!("validated: exactly one of request or rawLine"),
+fn step_request_line(step: &Step, project: Option<&ProjectFixture>) -> String {
+    match &step.request {
+        StepRequest::Request(request) => {
+            serde_json::to_string(&substitute_project_uri(request, project))
+                .expect("request serializes")
+        }
+        StepRequest::RawLine(raw) => raw.clone(),
     }
 }
 
