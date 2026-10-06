@@ -10,6 +10,7 @@ mod catalog;
 mod edits;
 mod lex;
 mod parse;
+mod symbols;
 mod text;
 
 pub(crate) use artifact::{
@@ -19,6 +20,7 @@ pub(crate) use artifact::{
 pub(crate) use catalog::{LookupScope, lookup};
 pub(crate) use edits::{EditValidation, validate_edits};
 pub(crate) use parse::parse_document;
+pub(crate) use symbols::{Symbol, is_valid_identifier};
 pub(crate) use text::{Position, Range, SourceText};
 
 #[cfg(test)]
@@ -49,7 +51,7 @@ pub(crate) fn diagnostic(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum OpKind {
+enum OpKind {
     Add,
     Sub,
     Mul,
@@ -77,32 +79,32 @@ impl OpKind {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Op {
-    pub name: String,
-    pub name_range: Range,
-    pub kind: OpKind,
-    pub arg: i64,
+struct Op {
+    name: String,
+    name_range: Range,
+    kind: OpKind,
+    arg: i64,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SolutionEntry {
-    pub name: String,
-    pub range: Range,
+struct SolutionEntry {
+    name: String,
+    range: Range,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct Puzzle {
-    pub name: String,
-    pub name_range: Range,
-    pub target: i64,
-    pub start: i64,
-    pub ops: Vec<Op>,
-    pub solution: Vec<SolutionEntry>,
-    pub solution_range: Range,
+    name: String,
+    name_range: Range,
+    target: i64,
+    start: i64,
+    ops: Vec<Op>,
+    solution: Vec<SolutionEntry>,
+    solution_range: Range,
 }
 
 impl Puzzle {
-    pub(crate) fn op(&self, name: &str) -> Option<&Op> {
+    fn op(&self, name: &str) -> Option<&Op> {
         self.ops.iter().find(|op| op.name == name)
     }
 
@@ -134,48 +136,4 @@ impl ParseOutput {
     pub(crate) fn has_errors(&self) -> bool {
         self.diagnostics.iter().any(|d| d.severity == "error")
     }
-}
-
-pub(crate) const KIND_PUZZLE: &str = "puzzle";
-pub(crate) const KIND_OP: &str = "op";
-
-#[derive(Debug, Clone)]
-pub(crate) enum Symbol {
-    Puzzle { name: String, range: Range },
-    Op { name: String },
-}
-
-impl Symbol {
-    pub(crate) fn name(&self) -> &str {
-        match self {
-            Symbol::Puzzle { name, .. } | Symbol::Op { name } => name,
-        }
-    }
-}
-
-/// The symbol under `byte`: the puzzle name, an op declaration, or a solution
-/// reference, in that order.
-pub(crate) fn symbol_at(src: &SourceText<'_>, puzzle: &Puzzle, byte: usize) -> Option<Symbol> {
-    if src.contains_byte(puzzle.name_range, byte) {
-        return Some(Symbol::Puzzle {
-            name: puzzle.name.clone(),
-            range: puzzle.name_range,
-        });
-    }
-    puzzle
-        .ops
-        .iter()
-        .map(|op| (op.name_range, &op.name))
-        .chain(puzzle.solution.iter().map(|e| (e.range, &e.name)))
-        .find(|(range, _)| src.contains_byte(*range, byte))
-        .map(|(_, name)| Symbol::Op { name: name.clone() })
-}
-
-pub(crate) fn is_valid_identifier(name: &str) -> bool {
-    let mut chars = name.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    (first.is_ascii_alphabetic() || first == '_')
-        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }

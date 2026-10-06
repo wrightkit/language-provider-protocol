@@ -13,10 +13,9 @@ use sha2::{Digest, Sha256};
 
 use crate::project::documents_for_request;
 use crate::puzzle::{
-    self, ARTIFACT_FORMAT, COMPILE_ARTIFACT_FORMATS, KIND_OP, KIND_PUZZLE, LookupScope,
-    ParseOutput, Position, Puzzle, Range, SUMMARY_ARTIFACT_FORMAT, SourceText, Symbol,
-    compile_artifact, is_valid_identifier, parse_document, reconstruct_source, summary_artifact,
-    symbol_at,
+    self, ARTIFACT_FORMAT, COMPILE_ARTIFACT_FORMATS, LookupScope, ParseOutput, Position, Puzzle,
+    Range, SUMMARY_ARTIFACT_FORMAT, SourceText, Symbol, compile_artifact, is_valid_identifier,
+    parse_document, reconstruct_source, summary_artifact,
 };
 use crate::rpc::{HandlerError, parse_params};
 use crate::server::{LANGUAGE_ID, Server};
@@ -172,7 +171,7 @@ impl Server {
                 let symbols = parsed
                     .puzzle
                     .as_ref()
-                    .map(puzzle_symbols)
+                    .map(Puzzle::document_symbols)
                     .unwrap_or_default();
                 document_view(doc, "symbols", json!(symbols))
             })
@@ -188,15 +187,9 @@ impl Server {
             "definition.noSymbolAtPosition",
             &params.document.uri,
         )?;
-        let range = match symbol {
-            Symbol::Puzzle { range, .. } => range,
-            Symbol::Op { name } => {
-                puzzle
-                    .op(&name)
-                    .expect("resolved puzzles reference declared ops")
-                    .name_range
-            }
-        };
+        let range = puzzle
+            .declaration_range(&symbol)
+            .expect("resolved puzzles reference declared ops");
         Ok(json!({
             "locations": [{ "uri": params.document.uri, "range": range }]
         }))
@@ -210,20 +203,11 @@ impl Server {
             "references.noSymbolAtPosition",
             &params.document.uri,
         )?;
-        let name = symbol.name();
-        let mut locations = Vec::new();
-        if params.include_declaration {
-            if let Some(op) = puzzle.op(name) {
-                locations.push(location_json(&params.document.uri, op.name_range));
-            }
-        }
-        locations.extend(
-            puzzle
-                .solution
-                .iter()
-                .filter(|entry| entry.name == name)
-                .map(|entry| location_json(&params.document.uri, entry.range)),
-        );
+        let locations: Vec<Value> = puzzle
+            .occurrences(symbol.name(), params.include_declaration)
+            .into_iter()
+            .map(|range| location_json(&params.document.uri, range))
+            .collect();
         Ok(json!({ "locations": locations }))
     }
 
@@ -256,34 +240,23 @@ impl Server {
             &params.position_document_uri,
         )?;
 
-        let name = symbol.name().to_string();
-        let target = match symbol {
-            Symbol::Puzzle { .. } => RenameTarget::Puzzle(name),
-            Symbol::Op { .. } => {
-                if puzzle.op(&name).is_some()
-                    && name != params.new_name
-                    && puzzle.op(&params.new_name).is_some()
-                {
-                    return Err(HandlerError::refusal(
-                        "rename.nameCollision",
-                        json!({ "newName": params.new_name }),
-                        "new name collides with an existing symbol",
-                    ));
-                }
-                RenameTarget::Op(name)
-            }
-        };
+        if puzzle.rename_collides(&symbol, &params.new_name) {
+            return Err(HandlerError::refusal(
+                "rename.nameCollision",
+                json!({ "newName": params.new_name }),
+                "new name collides with an existing symbol",
+            ));
+        }
 
         let edits: Vec<Value> = sorted_entries(&params.documents)
             .into_iter()
             .filter_map(|(key, doc)| {
                 let puzzle = parse_document(&doc.text).puzzle?;
-                let edits = rename_edits(
-                    &puzzle,
-                    &target,
-                    &params.new_name,
-                    key == &params.position_document_uri,
-                );
+                let edits: Vec<Value> = puzzle
+                    .rename_ranges(&symbol, key == &params.position_document_uri)
+                    .into_iter()
+                    .map(|range| json!({ "range": range, "newText": params.new_name }))
+                    .collect();
                 (!edits.is_empty()).then(|| {
                     json!({
                         "documentUri": doc.uri,
@@ -376,12 +349,6 @@ impl Server {
 /// The provider-side bound applied when a request omits `limit`.
 const DEFAULT_LOOKUP_LIMIT: u32 = 20;
 
-#[derive(Debug)]
-enum RenameTarget {
-    Puzzle(String),
-    Op(String),
-}
-
 fn select_artifact_format(accepted: Option<Vec<String>>) -> Result<&'static str, HandlerError> {
     match accepted {
         None => Ok(ARTIFACT_FORMAT),
@@ -471,22 +438,6 @@ fn location_json(uri: &str, range: Range) -> Value {
     json!({ "uri": uri, "range": range })
 }
 
-fn puzzle_symbols(puzzle: &Puzzle) -> Vec<Value> {
-    let mut symbols = vec![json!({
-        "name": puzzle.name,
-        "kind": KIND_PUZZLE,
-        "range": puzzle.name_range,
-    })];
-    symbols.extend(puzzle.ops.iter().map(|op| {
-        json!({
-            "name": op.name,
-            "kind": KIND_OP,
-            "range": op.name_range,
-        })
-    }));
-    symbols
-}
-
 /// The shared definition/references/rename preamble: document checks, then
 /// the symbol under `position`, or the method's `noSymbolAtPosition` refusal.
 fn symbol_at_position(
@@ -509,39 +460,6 @@ fn symbol_at_position(
     let puzzle = parse_document(&doc.text)
         .into_puzzle()
         .ok_or_else(no_symbol)?;
-    let symbol = symbol_at(&src, &puzzle, byte).ok_or_else(no_symbol)?;
+    let symbol = puzzle.symbol_at(&src, byte).ok_or_else(no_symbol)?;
     Ok((puzzle, symbol))
-}
-
-fn rename_edits(
-    puzzle: &Puzzle,
-    target: &RenameTarget,
-    new_name: &str,
-    is_position_doc: bool,
-) -> Vec<Value> {
-    let edit = |range: Range| json!({ "range": range, "newText": new_name });
-    match target {
-        RenameTarget::Puzzle(name) => {
-            if is_position_doc && puzzle.name == *name {
-                vec![edit(puzzle.name_range)]
-            } else {
-                Vec::new()
-            }
-        }
-        RenameTarget::Op(name) => {
-            let mut edits: Vec<Value> = puzzle
-                .op(name)
-                .map(|op| edit(op.name_range))
-                .into_iter()
-                .collect();
-            edits.extend(
-                puzzle
-                    .solution
-                    .iter()
-                    .filter(|entry| entry.name == *name)
-                    .map(|entry| edit(entry.range)),
-            );
-            edits
-        }
-    }
 }
