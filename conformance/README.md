@@ -99,15 +99,18 @@ Passing this suite verifies wire protocol conformance. It does not check Worksho
   | --- | --- |
   | `nonEmptyString` | any non-empty string |
   | `boolean` | any boolean |
-  | `languageList` | non-empty array of `{ "id", "extensions" }` language entries |
+  | `languageList` | non-empty array of `{ "id", "extensions" }` language entries, extensions lowercase without a leading dot |
   | `protocolVersions` | non-empty array of `MAJOR.MINOR` strings |
 
-  Marked leaves are exactly the provider-supplied positions named in
-  [§20.1](../docs/spec/conformance.md#201-provider-supplied-leaves):
-  `serverInfo` fields, `languages`, capability values,
-  `supportedProtocolVersions`, error `message` prose, `refusalCode`, and
-  `details.reason` values the spec does not enumerate. Every other leaf keeps
-  verbatim JSON equality; markers are not valid in `request`.
+  Marker positions are a whitelist — the provider-supplied positions named
+  in [§20.1](../docs/spec/conformance.md#201-provider-supplied-leaves), and
+  fixture validation enforces it, including the sibling `data.lpp.kind` and
+  negotiated `protocolVersion` a position can depend on. A marked
+  `capabilities` object must mark exactly the capability ids declared for
+  the negotiated version: a provider may advertise any subset (absent means
+  not offered), but an undeclared capability id still fails the closed-set
+  check. Every other leaf keeps verbatim JSON equality; markers are not
+  valid in `request`.
 * `expectExitCode`: the provider's exit status after stdin is closed (default
   0).
 

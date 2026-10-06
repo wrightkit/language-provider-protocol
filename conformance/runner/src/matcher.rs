@@ -27,6 +27,86 @@ const KINDS: &[&str] = &[
     "protocolVersions",
 ];
 
+/// The `capabilities` object inside an `lpp/initialize` result.
+const CAPABILITIES_PATH: &str = "$.result.capabilities";
+
+/// Capability ids in introduction order. Per §7.3 the set is closed for each
+/// LPP minor version: ids are added only through a new protocol version.
+const CAPABILITY_IDS: &[&str] = &[
+    "check",
+    "compile",
+    "reconstruct",
+    "symbols",
+    "definition",
+    "references",
+    "rename",
+    "editValidation",
+    "projectLoading",
+    "sourceIdentity",
+    "lookup",
+];
+
+/// The capability ids a negotiated protocol version declares.
+fn declared_capability_ids(root: &Value) -> Option<&'static [&'static str]> {
+    let count = match root.pointer("/result/protocolVersion")?.as_str()? {
+        "1.0" => 8,
+        "1.1" | "1.2" => 9,
+        "1.3" | "1.4" => 10,
+        "1.5" => 11,
+        _ => return None,
+    };
+    Some(&CAPABILITY_IDS[..count])
+}
+
+/// The `data.lpp.kind` of an expected error response.
+fn expected_error_kind(root: &Value) -> Option<&str> {
+    root.pointer("/error/data/lpp/kind")?.as_str()
+}
+
+/// Whether `{ "$provider": kind }` may appear at `path` inside an expected
+/// response, per the §20.1 whitelist of spec-declared provider-supplied
+/// positions. `root` is the whole `expectResponse`, so positions whose
+/// legality depends on sibling fields (`data.lpp.kind`, the negotiated
+/// `protocolVersion`) can be checked.
+fn marker_position_legal(path: &str, kind: &str, root: &Value) -> bool {
+    match path {
+        "$.result.serverInfo.name" | "$.result.serverInfo.version" => kind == "nonEmptyString",
+        "$.result.languages" => kind == "languageList",
+        "$.error.message" => kind == "nonEmptyString",
+        "$.error.data.lpp.details.supportedProtocolVersions" => {
+            kind == "protocolVersions"
+                && expected_error_kind(root) == Some("protocolVersionMismatch")
+        }
+        "$.error.data.lpp.details.refusalCode" => {
+            kind == "nonEmptyString" && expected_error_kind(root) == Some("refusal")
+        }
+        // `reason` is provider-defined only for the kinds whose details the
+        // spec does not enumerate; `invalidRequest.reason` is a closed set.
+        "$.error.data.lpp.details.reason" => {
+            kind == "nonEmptyString"
+                && matches!(
+                    expected_error_kind(root),
+                    Some(
+                        "invalidDocument"
+                            | "invalidEntry"
+                            | "projectLoadFailed"
+                            | "invalidArtifact"
+                    )
+                )
+        }
+        _ => match path
+            .strip_prefix(CAPABILITIES_PATH)
+            .and_then(|id| id.strip_prefix('.'))
+        {
+            Some(id) => {
+                kind == "boolean"
+                    && declared_capability_ids(root).is_some_and(|ids| ids.contains(&id))
+            }
+            None => false,
+        },
+    }
+}
+
 /// `Some(kind)` when `expected` is a well-formed provider leaf marker.
 fn marker_kind(expected: &Value) -> Option<&str> {
     expected
@@ -39,8 +119,14 @@ fn marker_kind(expected: &Value) -> Option<&str> {
 
 /// Validates every `$provider` marker inside a fixture value. Markers are
 /// legal only in expected responses, so requests are checked with
-/// `allow_markers: false`.
+/// `allow_markers: false`. A marker's legality also depends on where it sits:
+/// `value` doubles as the response root so marker paths can be checked
+/// against the §20.1 whitelist.
 pub(crate) fn validate_leaves(value: &Value, allow_markers: bool) -> Result<(), String> {
+    validate_at(value, value, "$", allow_markers)
+}
+
+fn validate_at(root: &Value, value: &Value, path: &str, allow_markers: bool) -> Result<(), String> {
     let is_marker = value
         .as_object()
         .is_some_and(|object| object.contains_key("$provider"));
@@ -48,23 +134,64 @@ pub(crate) fn validate_leaves(value: &Value, allow_markers: bool) -> Result<(), 
         if !allow_markers {
             return Err("'$provider' markers belong to 'expectResponse'".into());
         }
-        return match marker_kind(value) {
-            Some(_) => Ok(()),
-            None => Err(format!(
+        let Some(kind) = marker_kind(value) else {
+            return Err(format!(
                 "'$provider' marker must be the object's only key and one of: {}",
                 KINDS.join(", ")
-            )),
+            ));
         };
+        return marker_position_legal(path, kind, root)
+            .then_some(())
+            .ok_or_else(|| {
+                format!("'{kind}' marker is not a provider-supplied position at '{path}'")
+            });
+    }
+    if path == CAPABILITIES_PATH {
+        validate_capability_object(root, value)?;
     }
     match value {
-        Value::Object(object) => object
-            .values()
-            .try_for_each(|value| validate_leaves(value, allow_markers)),
-        Value::Array(values) => values
-            .iter()
-            .try_for_each(|value| validate_leaves(value, allow_markers)),
+        Value::Object(object) => object.iter().try_for_each(|(key, value)| {
+            validate_at(root, value, &format!("{path}.{key}"), allow_markers)
+        }),
+        Value::Array(values) => values.iter().enumerate().try_for_each(|(i, value)| {
+            validate_at(root, value, &format!("{path}[{i}]"), allow_markers)
+        }),
         _ => Ok(()),
     }
+}
+
+/// A `capabilities` object that carries markers must mark the full declared
+/// capability set for the negotiated version: every value a `boolean` marker,
+/// every key a declared id, and no declared id missing. Verbatim capability
+/// maps (adapter-specific `providerArgs` scenarios) are unaffected.
+fn validate_capability_object(root: &Value, value: &Value) -> Result<(), String> {
+    let Some(object) = value.as_object() else {
+        return Ok(());
+    };
+    let marked = object.values().any(|value| {
+        value
+            .as_object()
+            .is_some_and(|o| o.contains_key("$provider"))
+    });
+    if !marked {
+        return Ok(());
+    }
+    if !object
+        .values()
+        .all(|value| marker_kind(value) == Some("boolean"))
+    {
+        return Err(format!(
+            "'{CAPABILITIES_PATH}': provider markers cannot mix with verbatim capability values"
+        ));
+    }
+    let declared = declared_capability_ids(root).unwrap_or(&[]);
+    if object.len() != declared.len() || !object.keys().all(|key| declared.contains(&key.as_str()))
+    {
+        return Err(format!(
+            "'{CAPABILITIES_PATH}': marked capabilities must cover exactly the declared ids for the negotiated version"
+        ));
+    }
+    Ok(())
 }
 
 /// Recursive expected-vs-actual comparison honoring provider-leaf markers.
@@ -81,6 +208,11 @@ fn match_at(expected: &Value, actual: &Value, path: &str) -> Result<(), String> 
         (Value::Object(expected), Value::Object(actual)) => {
             for (key, expected_value) in expected {
                 let Some(actual_value) = actual.get(key) else {
+                    // §7.3: an absent capability id means not advertised —
+                    // equivalent to `false`. Everywhere else keys are required.
+                    if path == CAPABILITIES_PATH {
+                        continue;
+                    }
                     return Err(format!("{path}: missing key '{key}'"));
                 };
                 match_at(expected_value, actual_value, &format!("{path}.{key}"))?;
@@ -128,7 +260,8 @@ fn check_kind(kind: &str, actual: &Value) -> Result<(), String> {
 }
 
 /// `languages`: a non-empty array of `{ id, extensions }` entries, where `id`
-/// is a non-empty string and `extensions` a (possibly empty) string array.
+/// is a non-empty string and `extensions` a (possibly empty) array of file
+/// extensions written without a leading dot and in lowercase (§7.2).
 fn is_language_list(actual: &Value) -> bool {
     let Some(entries) = actual.as_array() else {
         return false;
@@ -144,9 +277,15 @@ fn is_language_list(actual: &Value) -> bool {
                     && entry
                         .get("extensions")
                         .and_then(Value::as_array)
-                        .is_some_and(|ext| ext.iter().all(Value::is_string))
+                        .is_some_and(|ext| {
+                            ext.iter().all(|ext| ext.as_str().is_some_and(is_extension))
+                        })
             })
         })
+}
+
+fn is_extension(ext: &str) -> bool {
+    !ext.is_empty() && !ext.starts_with('.') && !ext.chars().any(char::is_uppercase)
 }
 
 /// `supportedProtocolVersions`: a non-empty array of `MAJOR.MINOR` strings.
@@ -210,6 +349,16 @@ mod tests {
             ("languageList", json!([])),
             ("languageList", json!([{ "id": "opy" }])),
             ("languageList", json!([{ "id": "", "extensions": [] }])),
+            // §7.2: extensions are lowercase, without a leading dot.
+            (
+                "languageList",
+                json!([{ "id": "opy", "extensions": [".OPY"] }]),
+            ),
+            (
+                "languageList",
+                json!([{ "id": "opy", "extensions": ["OPY"] }]),
+            ),
+            ("languageList", json!([{ "id": "opy", "extensions": [""] }])),
             ("protocolVersions", json!([])),
             ("protocolVersions", json!(["1x"])),
             ("protocolVersions", json!(["1.0", 1])),
@@ -243,16 +392,157 @@ mod tests {
             )
             .is_err()
         );
-        assert!(matches(&expected, &json!({"capabilities": {}})).is_err());
+    }
+
+    #[test]
+    fn capabilities_may_advertise_a_subset() {
+        let expected = json!({"result": {"capabilities": {"check": {"$provider": "boolean"}, "lookup": {"$provider": "boolean"}}}});
+        // Per §7.3 absent means not advertised; advertised values are checked.
+        assert!(matches(&expected, &json!({"result": {"capabilities": {}}})).is_ok());
+        assert!(
+            matches(
+                &expected,
+                &json!({"result": {"capabilities": {"check": false}}})
+            )
+            .is_ok()
+        );
+        assert!(
+            matches(
+                &expected,
+                &json!({"result": {"capabilities": {"check": true, "custom": true}}})
+            )
+            .is_err(),
+            "undeclared capability ids violate the closed set"
+        );
+        assert!(
+            matches(
+                &expected,
+                &json!({"result": {"capabilities": {"check": "yes"}}})
+            )
+            .is_err()
+        );
+    }
+
+    fn init_result() -> Value {
+        json!({
+            "result": {
+                "protocolVersion": "1.5",
+                "serverInfo": {
+                    "name": {"$provider": "nonEmptyString"},
+                    "version": {"$provider": "nonEmptyString"}
+                },
+                "languages": {"$provider": "languageList"},
+                "capabilities": {
+                    "check": {"$provider": "boolean"},
+                    "compile": {"$provider": "boolean"},
+                    "reconstruct": {"$provider": "boolean"},
+                    "symbols": {"$provider": "boolean"},
+                    "definition": {"$provider": "boolean"},
+                    "references": {"$provider": "boolean"},
+                    "rename": {"$provider": "boolean"},
+                    "editValidation": {"$provider": "boolean"},
+                    "projectLoading": {"$provider": "boolean"},
+                    "sourceIdentity": {"$provider": "boolean"},
+                    "lookup": {"$provider": "boolean"}
+                }
+            }
+        })
     }
 
     #[test]
     fn validate_leaves_enforces_marker_form_and_position() {
-        assert!(validate_leaves(&json!({"$provider": "boolean"}), true).is_ok());
-        assert!(validate_leaves(&json!({"$provider": "unknown"}), true).is_err());
+        assert!(validate_leaves(&init_result(), true).is_ok());
+        // Marker form.
+        assert!(validate_leaves(&json!({"result": {"protocolVersion": "1.5", "capabilities": {"check": {"$provider": "unknown"}}}}), true).is_err());
         assert!(validate_leaves(&json!({"$provider": "boolean", "x": 1}), true).is_err());
         assert!(validate_leaves(&json!({"$provider": "boolean"}), false).is_err());
         // Plain objects without the key are never markers.
         assert!(validate_leaves(&json!({"provider": "boolean"}), false).is_ok());
+    }
+
+    #[test]
+    fn markers_reject_contract_owned_positions() {
+        // Marker on the root or a contract-owned leaf.
+        for expected in [
+            json!({"$provider": "nonEmptyString"}),
+            json!({"result": {"protocolVersion": {"$provider": "nonEmptyString"}}}),
+            json!({"error": {"code": {"$provider": "nonEmptyString"}}}),
+            json!({"error": {"data": {"lpp": {"kind": {"$provider": "nonEmptyString"}}}}}),
+            json!({"result": {"serverInfo": {"$provider": "nonEmptyString"}}}),
+        ] {
+            assert!(
+                validate_leaves(&expected, true).is_err(),
+                "marker should be rejected: {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn marker_kind_must_match_position() {
+        let mut expected = init_result();
+        expected["result"]["languages"] = json!({"$provider": "nonEmptyString"});
+        assert!(validate_leaves(&expected, true).is_err());
+        expected["result"]["serverInfo"]["name"] = json!({"$provider": "boolean"});
+        assert!(validate_leaves(&expected, true).is_err());
+    }
+
+    #[test]
+    fn details_markers_follow_the_error_kind() {
+        // `reason` is provider-defined under `invalidDocument` ...
+        let expected = json!({"error": {"data": {"lpp": {
+            "kind": "invalidDocument",
+            "details": {"reason": {"$provider": "nonEmptyString"}}
+        }}}});
+        assert!(validate_leaves(&expected, true).is_ok());
+        // ... but a closed set under `invalidRequest`.
+        let expected = json!({"error": {"data": {"lpp": {
+            "kind": "invalidRequest",
+            "details": {"reason": {"$provider": "nonEmptyString"}}
+        }}}});
+        assert!(validate_leaves(&expected, true).is_err());
+        // `refusalCode` only under `refusal`; `supportedProtocolVersions` only
+        // under `protocolVersionMismatch`.
+        let expected = json!({"error": {"data": {"lpp": {
+            "kind": "invalidRequest",
+            "details": {"refusalCode": {"$provider": "nonEmptyString"}}
+        }}}});
+        assert!(validate_leaves(&expected, true).is_err());
+        let expected = json!({"error": {"data": {"lpp": {
+            "kind": "refusal",
+            "details": {"supportedProtocolVersions": {"$provider": "protocolVersions"}}
+        }}}});
+        assert!(validate_leaves(&expected, true).is_err());
+    }
+
+    #[test]
+    fn marked_capabilities_cover_the_declared_set() {
+        let mut expected = init_result();
+        // A declared id left unmarked weakens the closed-set check.
+        expected["result"]["capabilities"]
+            .as_object_mut()
+            .unwrap()
+            .remove("lookup");
+        assert!(validate_leaves(&expected, true).is_err());
+        // An undeclared id is not a provider-supplied position.
+        let mut expected = init_result();
+        expected["result"]["capabilities"]
+            .as_object_mut()
+            .unwrap()
+            .insert("custom".into(), json!({"$provider": "boolean"}));
+        assert!(validate_leaves(&expected, true).is_err());
+        // Markers cannot mix with verbatim capability values.
+        let mut expected = init_result();
+        expected["result"]["capabilities"]["check"] = json!(true);
+        assert!(validate_leaves(&expected, true).is_err());
+        // The declared set follows the negotiated version.
+        let mut expected = init_result();
+        expected["result"]["protocolVersion"] = json!("1.0");
+        for key in ["projectLoading", "sourceIdentity", "lookup"] {
+            expected["result"]["capabilities"]
+                .as_object_mut()
+                .unwrap()
+                .remove(key);
+        }
+        assert!(validate_leaves(&expected, true).is_ok());
     }
 }

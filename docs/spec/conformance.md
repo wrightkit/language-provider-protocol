@@ -39,17 +39,35 @@ satisfy protocol-scope scenarios:
 
 | Marker | Asserted shape | Where it applies |
 | --- | --- | --- |
-| `nonEmptyString` | any non-empty string | `serverInfo` fields, error `message` prose, `refusalCode`, `details.reason` values the spec does not enumerate |
-| `boolean` | any boolean | `capabilities` values in `lpp/initialize` results; the capability key set itself stays a verbatim assertion |
-| `languageList` | non-empty array of `{ "id": <non-empty string>, "extensions": [<string>] }` | the `languages` array |
-| `protocolVersions` | non-empty array of `MAJOR.MINOR` strings | `supportedProtocolVersions` |
+| `nonEmptyString` | any non-empty string | `serverInfo` fields, error `message` prose, `refusalCode` under `refusal`, `details.reason` under `invalidDocument`, `invalidEntry`, `projectLoadFailed`, and `invalidArtifact` |
+| `boolean` | any boolean | `capabilities` values in `lpp/initialize` results |
+| `languageList` | non-empty array of `{ "id": <non-empty string>, "extensions": [<lowercase extension>] }` | the `languages` array |
+| `protocolVersions` | non-empty array of `MAJOR.MINOR` strings | `supportedProtocolVersions` under `protocolVersionMismatch` |
 
-Markers are legal only inside `expectResponse`. Fixtures may mark a leaf only
-where the spec declares it provider-supplied; every other leaf, including the
-marker object's own siblings, keeps verbatim JSON equality. A scenario whose
-`providerArgs` configures a specific adapter may keep the configured leaves —
-such as the capability map it negotiates — verbatim; `providerArgs` is itself
-an adapter-owned surface and makes a scenario adapter-specific.
+The marker positions above are a whitelist, and the runner enforces it at
+fixture-validation time — including the sibling context a position depends
+on, such as `data.lpp.kind` or the negotiated `protocolVersion`. A marker on
+any other leaf — for example `protocolVersion`, `error.code`, a
+spec-enumerated `invalidRequest` reason, or an undeclared capability id — is
+a fixture error, as is a marker inside `request`.
+
+Two positions carry extra fixture rules:
+
+* A `capabilities` object that carries markers must mark exactly the
+  capability ids declared for the negotiated `protocolVersion` — no missing
+  or undeclared ids, and no markers mixed with verbatim values. This keeps
+  the closed capability set (§7.3) a normative assertion: a response that
+  advertises an undeclared id still fails, while a response that omits ids
+  it does not offer passes, since absent means not advertised. A scenario
+  asserting a specific negotiated subset — such as one configured through
+  `providerArgs` — keeps its capability map verbatim instead.
+* `details.reason` may be marked only under the error kinds whose values the
+  spec does not enumerate; the `invalidRequest` reasons are a closed set and
+  stay verbatim.
+
+Every unmarked leaf, including a marker object's own siblings, keeps verbatim
+JSON equality. `providerArgs` is an adapter-owned surface and makes a
+scenario adapter-specific.
 
 ## Appendix A: Message and type index
 
