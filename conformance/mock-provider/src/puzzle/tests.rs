@@ -1,7 +1,9 @@
+use super::Puzzle;
 use super::artifact::{compile_artifact, reconstruct_source};
 use super::catalog::{LookupScope, lookup};
 use super::edits::{EditValidation, validate_edits};
 use super::parse::parse_document;
+use super::symbols::{Symbol, is_valid_identifier};
 use super::text::{Position, Range, SourceText};
 
 const CLEAN: &str = "puzzle clean {\n  target = 40\n  start = 10\n  ops {\n    double: x => x * 2\n    plus1: x => x + 1\n  }\n  solution = [ double, double ]\n}";
@@ -200,4 +202,135 @@ fn lookup_unknown_within_is_none() {
     ] {
         assert!(lookup("", None, &scope, 20).is_none());
     }
+}
+
+// -- Symbol queries (lpp/symbols, definition, references, rename) ----------
+
+/// Parses `text` into a puzzle and returns it with its source text.
+fn puzzle_of(text: &str) -> (SourceText<'_>, Puzzle) {
+    let src = SourceText::new(text);
+    let puzzle = parse_document(text).puzzle.expect("parsed");
+    (src, puzzle)
+}
+
+/// The symbol under `line:character`, resolved the way the wire handlers do.
+fn symbol_at(src: &SourceText<'_>, puzzle: &Puzzle, line: u32, character: u32) -> Option<Symbol> {
+    puzzle.symbol_at(src, src.byte_of(pos(line, character)).expect("in document"))
+}
+
+#[test]
+fn document_symbols_lists_puzzle_then_ops_in_declaration_order() {
+    let (_, puzzle) = puzzle_of(CLEAN);
+    let symbols = serde_json::to_value(puzzle.document_symbols()).expect("serializes");
+    assert_eq!(
+        symbols,
+        serde_json::json!([
+            { "name": "clean", "kind": "puzzle", "range": rng(0, 7, 0, 12) },
+            { "name": "double", "kind": "op", "range": rng(4, 4, 4, 10) },
+            { "name": "plus1", "kind": "op", "range": rng(5, 4, 5, 9) },
+        ])
+    );
+}
+
+#[test]
+fn symbol_at_resolves_puzzle_op_declaration_and_reference() {
+    let (src, puzzle) = puzzle_of(CLEAN);
+
+    match symbol_at(&src, &puzzle, 0, 9).expect("puzzle name") {
+        Symbol::Puzzle { name } => assert_eq!(name, "clean"),
+        Symbol::Op { .. } => panic!("expected puzzle symbol"),
+    }
+    // An op declaration and each solution reference resolve to the same op.
+    for (line, character) in [(4, 6), (7, 16), (7, 25)] {
+        match symbol_at(&src, &puzzle, line, character).expect("op") {
+            Symbol::Op { name } => assert_eq!(name, "double"),
+            Symbol::Puzzle { .. } => panic!("expected op symbol at {line}:{character}"),
+        }
+    }
+    match symbol_at(&src, &puzzle, 5, 5).expect("op") {
+        Symbol::Op { name } => assert_eq!(name, "plus1"),
+        Symbol::Puzzle { .. } => panic!("expected op symbol"),
+    }
+
+    // Keywords, settings, and punctuation are not symbols.
+    for (line, character) in [(0, 3), (1, 4), (7, 3), (7, 11)] {
+        assert!(symbol_at(&src, &puzzle, line, character).is_none());
+    }
+}
+
+#[test]
+fn declaration_range_points_at_the_declaration() {
+    let (src, puzzle) = puzzle_of(CLEAN);
+    let at = |line, character| symbol_at(&src, &puzzle, line, character).expect("symbol");
+
+    // The puzzle name is its own declaration.
+    assert_eq!(puzzle.declaration_range(&at(0, 9)), Some(rng(0, 7, 0, 12)));
+    // An op declaration and its solution references share one declaration.
+    for (line, character) in [(4, 6), (7, 16), (7, 25)] {
+        assert_eq!(
+            puzzle.declaration_range(&at(line, character)),
+            Some(rng(4, 4, 4, 10))
+        );
+    }
+}
+
+#[test]
+fn occurrences_list_declaration_first_then_references() {
+    let (_, puzzle) = puzzle_of(CLEAN);
+    assert_eq!(
+        puzzle.occurrences("double", true),
+        vec![rng(4, 4, 4, 10), rng(7, 15, 7, 21), rng(7, 23, 7, 29)]
+    );
+    assert_eq!(
+        puzzle.occurrences("double", false),
+        vec![rng(7, 15, 7, 21), rng(7, 23, 7, 29)]
+    );
+    // A declared-but-unreferenced op lists only its declaration.
+    assert_eq!(puzzle.occurrences("plus1", true), vec![rng(5, 4, 5, 9)]);
+    // Unknown names have no occurrences.
+    assert!(puzzle.occurrences("triple", true).is_empty());
+}
+
+#[test]
+fn rename_ranges_for_op_cover_declaration_and_references() {
+    let (src, puzzle) = puzzle_of(CLEAN);
+    let symbol = symbol_at(&src, &puzzle, 7, 16).expect("symbol");
+    // Op renames edit every document that mentions the op, positioned or not.
+    for is_position_doc in [true, false] {
+        assert_eq!(
+            puzzle.rename_ranges(&symbol, is_position_doc),
+            vec![rng(4, 4, 4, 10), rng(7, 15, 7, 21), rng(7, 23, 7, 29)]
+        );
+    }
+}
+
+#[test]
+fn rename_ranges_for_puzzle_name_only_edit_the_position_document() {
+    let (src, puzzle) = puzzle_of(CLEAN);
+    let symbol = symbol_at(&src, &puzzle, 0, 9).expect("symbol");
+    assert_eq!(puzzle.rename_ranges(&symbol, true), vec![rng(0, 7, 0, 12)]);
+    assert!(puzzle.rename_ranges(&symbol, false).is_empty());
+}
+
+#[test]
+fn rename_collides_only_with_another_op() {
+    let (src, puzzle) = puzzle_of(CLEAN);
+    let op = symbol_at(&src, &puzzle, 7, 16).expect("op");
+    let puzzle_name = symbol_at(&src, &puzzle, 0, 9).expect("puzzle name");
+
+    assert!(puzzle.rename_collides(&op, "plus1"));
+    // Renaming to the current name is not a collision.
+    assert!(!puzzle.rename_collides(&op, "double"));
+    assert!(!puzzle.rename_collides(&op, "triple"));
+    // Puzzle-name renames never collide with ops.
+    assert!(!puzzle.rename_collides(&puzzle_name, "plus1"));
+}
+
+#[test]
+fn identifier_rules_match_the_lexer() {
+    assert!(is_valid_identifier("double"));
+    assert!(is_valid_identifier("_x9"));
+    assert!(!is_valid_identifier("9x"));
+    assert!(!is_valid_identifier(""));
+    assert!(!is_valid_identifier("a-b"));
 }
