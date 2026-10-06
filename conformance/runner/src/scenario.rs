@@ -2,9 +2,8 @@
 //! structural validation the runner performs before replaying anything.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use lpp_conformance_common::path_to_file_uri;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -29,12 +28,44 @@ pub(crate) struct Scenario {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(try_from = "StepWire")]
 pub(crate) struct Step {
-    pub request: Option<Value>,
-    #[serde(default)]
-    pub raw_line: Option<String>,
+    /// The one request form the step sends.
+    pub request: StepRequest,
     pub expect_response: Value,
+}
+
+/// A step's outbound payload: either a JSON-RPC `request` object or a
+/// `rawLine` sent verbatim — never both, never neither.
+pub(crate) enum StepRequest {
+    Request(Value),
+    RawLine(String),
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StepWire {
+    request: Option<Value>,
+    raw_line: Option<String>,
+    expect_response: Value,
+}
+
+impl TryFrom<StepWire> for Step {
+    type Error = String;
+
+    fn try_from(wire: StepWire) -> Result<Self, Self::Error> {
+        let request = match (wire.request, wire.raw_line) {
+            (Some(request), None) => StepRequest::Request(request),
+            (None, Some(raw)) => StepRequest::RawLine(raw),
+            _ => {
+                return Err("step must have exactly one of 'request' or 'rawLine'".into());
+            }
+        };
+        Ok(Step {
+            request,
+            expect_response: wire.expect_response,
+        })
+    }
 }
 
 /// The literal handshake a `session` fixture inherits: the exact
@@ -54,17 +85,12 @@ pub(crate) fn read_scenario(path: &Path) -> Result<Scenario, String> {
         // The handshake comes from the template; stepping it twice is a
         // session-behavior test and must stay explicit.
         for (i, step) in scenario.steps.iter().enumerate() {
-            let method = step
-                .request
-                .as_ref()
-                .and_then(|r| r.get("method"))
-                .and_then(Value::as_str)
-                .or_else(|| {
-                    let line = step.raw_line.as_deref()?;
-                    ["lpp/initialize", "lpp/shutdown"]
-                        .into_iter()
-                        .find(|m| line.contains(m))
-                });
+            let method = match &step.request {
+                StepRequest::Request(request) => request.get("method").and_then(Value::as_str),
+                StepRequest::RawLine(line) => ["lpp/initialize", "lpp/shutdown"]
+                    .into_iter()
+                    .find(|m| line.contains(m)),
+            };
             if matches!(method, Some("lpp/initialize" | "lpp/shutdown")) {
                 return Err(format!(
                     "invalid fixture: step {i}: a 'session' scenario must not step {method:?}"
@@ -87,18 +113,20 @@ pub(crate) fn read_scenario(path: &Path) -> Result<Scenario, String> {
 /// request's id (null for `rawLine` steps).
 fn apply_envelope_defaults(steps: &mut [Step]) {
     for step in steps {
-        if let Some(request) = step.request.as_mut().and_then(Value::as_object_mut) {
-            request.entry("jsonrpc").or_insert_with(|| json!("2.0"));
+        if let StepRequest::Request(request) = &mut step.request {
+            if let Some(request) = request.as_object_mut() {
+                request.entry("jsonrpc").or_insert_with(|| json!("2.0"));
+            }
         }
         if let Some(response) = step.expect_response.as_object_mut() {
             response.entry("jsonrpc").or_insert_with(|| json!("2.0"));
             if !response.contains_key("id") {
-                let id = step
-                    .request
-                    .as_ref()
-                    .and_then(|r| r.get("id"))
-                    .cloned()
-                    .unwrap_or(Value::Null);
+                let id = match &step.request {
+                    StepRequest::Request(request) => {
+                        request.get("id").cloned().unwrap_or(Value::Null)
+                    }
+                    StepRequest::RawLine(_) => Value::Null,
+                };
                 response.insert("id".to_string(), id);
             }
         }
@@ -146,24 +174,18 @@ fn validate_scenario(scenario: &Scenario) -> Result<(), String> {
         }
     }
     for (i, step) in scenario.steps.iter().enumerate() {
-        let request_id = step.request.as_ref().and_then(|r| r.get("id"));
         let response_id = step.expect_response.get("id");
         // Normal requests: the response id echoes the request id, unless the
         // scenario deliberately sends an id-less message (notification,
         // batch), in which case the response id is null. Raw lines carry no
         // id, so the expected response id must be null.
-        let id_ok = match (&step.request, &step.raw_line) {
-            (Some(_), None) => match (request_id, response_id) {
+        let id_ok = match &step.request {
+            StepRequest::Request(request) => match (request.get("id"), response_id) {
                 (Some(request_id), Some(response_id)) => request_id == response_id,
                 (None, Some(Value::Null)) => true,
                 _ => false,
             },
-            (None, Some(_)) => matches!(response_id, Some(Value::Null)),
-            _ => {
-                return Err(format!(
-                    "step {i}: step must have exactly one of 'request' or 'rawLine'"
-                ));
-            }
+            StepRequest::RawLine(_) => matches!(response_id, Some(Value::Null)),
         };
         if !id_ok {
             return Err(format!(
@@ -193,12 +215,15 @@ fn validate_expected(response: &Value) -> Result<(), String> {
 
 fn uses_project_uri(scenario: &Scenario) -> bool {
     scenario.steps.iter().any(|step| {
-        step.request.as_ref().is_some_and(contains_project_uri)
-            || contains_project_uri(&step.expect_response)
+        let request_uses_uri = match &step.request {
+            StepRequest::Request(request) => contains_project_uri(request),
+            StepRequest::RawLine(_) => false,
+        };
+        request_uses_uri || contains_project_uri(&step.expect_response)
     })
 }
 
-fn validate_project_path(relative: &str) -> Result<(), String> {
+pub(crate) fn validate_project_path(relative: &str) -> Result<(), String> {
     let path = Path::new(relative);
     if relative.is_empty()
         || path.is_absolute()
@@ -220,78 +245,5 @@ fn contains_project_uri(value: &Value) -> bool {
         Value::Array(values) => values.iter().any(contains_project_uri),
         Value::Object(object) => object.values().any(contains_project_uri),
         _ => false,
-    }
-}
-
-/// A materialized `projectFiles` tree; removed when dropped.
-pub(crate) struct ProjectFixture {
-    directory: PathBuf,
-    pub uri: String,
-}
-
-impl Drop for ProjectFixture {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.directory);
-    }
-}
-
-/// Write `projectFiles` into an isolated directory under `target/`.
-/// `Ok(None)` when the scenario has no project files.
-pub(crate) fn materialize_project(
-    scenario: &Scenario,
-    scenario_index: usize,
-) -> Result<Option<ProjectFixture>, String> {
-    let Some(files) = &scenario.project_files else {
-        return Ok(None);
-    };
-    let root = PathBuf::from("target/lpp-conformance-projects");
-    std::fs::create_dir_all(&root)
-        .map_err(|error| format!("cannot create project fixture root: {error}"))?;
-    let directory = root.join(format!("{}-{}", std::process::id(), scenario_index));
-    std::fs::create_dir(&directory)
-        .map_err(|error| format!("cannot create project fixture directory: {error}"))?;
-
-    // From here on the fixture owns the directory; any error cleans it up.
-    let mut fixture = ProjectFixture {
-        directory,
-        uri: String::new(),
-    };
-    for (relative, contents) in files {
-        validate_project_path(relative)?;
-        let path = fixture.directory.join(relative);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|error| format!("cannot create project fixture parent: {error}"))?;
-        }
-        std::fs::write(&path, contents)
-            .map_err(|error| format!("cannot write project fixture '{relative}': {error}"))?;
-    }
-    fixture.directory = std::fs::canonicalize(&fixture.directory)
-        .map_err(|error| format!("cannot canonicalize project fixture: {error}"))?;
-    fixture.uri = path_to_file_uri(&fixture.directory)
-        .ok_or_else(|| "project fixture path is not valid UTF-8".to_string())?;
-    Ok(Some(fixture))
-}
-
-/// Recursively replace `${PROJECT_URI}` in fixture JSON.
-pub(crate) fn substitute_project_uri(value: &Value, project: Option<&ProjectFixture>) -> Value {
-    match value {
-        Value::String(text) => {
-            let replacement = project.map_or_else(String::new, |project| project.uri.clone());
-            Value::String(text.replace("${PROJECT_URI}", &replacement))
-        }
-        Value::Array(values) => Value::Array(
-            values
-                .iter()
-                .map(|value| substitute_project_uri(value, project))
-                .collect(),
-        ),
-        Value::Object(object) => Value::Object(
-            object
-                .iter()
-                .map(|(key, value)| (key.clone(), substitute_project_uri(value, project)))
-                .collect(),
-        ),
-        value => value.clone(),
     }
 }

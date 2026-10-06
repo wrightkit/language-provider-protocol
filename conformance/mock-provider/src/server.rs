@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use serde_json::{Value, json};
 
 use crate::methods::METHODS;
-use crate::rpc::{HandlerError, lpp_error, ok, parse_params, std_error};
+use crate::rpc::{lpp_error, ok, parse_params, std_error};
 use crate::wire::InitParams;
 
 /// Protocol versions accepted by `--protocol-version`.
@@ -211,24 +211,6 @@ impl Server {
         match (entry.handler)(self, params) {
             Ok(result) => ok(id.clone(), result),
             Err(error) => error.into_response(id.clone()),
-        }
-    }
-
-    /// Reads `acceptedArtifactFormats` from `lpp/compile` params. Valid only
-    /// in LPP 1.4-or-later sessions, as a non-empty array of strings.
-    pub(crate) fn accepted_artifact_formats(
-        &self,
-        params: &Value,
-    ) -> Result<Option<Vec<String>>, HandlerError> {
-        let Some(field) = params.get("acceptedArtifactFormats") else {
-            return Ok(None);
-        };
-        if !self.since(4) {
-            return Err(HandlerError::invalid_params());
-        }
-        match serde_json::from_value::<Vec<String>>(field.clone()) {
-            Ok(formats) if !formats.is_empty() => Ok(Some(formats)),
-            _ => Err(HandlerError::invalid_params()),
         }
     }
 }
