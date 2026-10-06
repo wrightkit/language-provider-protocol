@@ -247,3 +247,61 @@ fn contains_project_uri(value: &Value) -> bool {
         _ => false,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The schema rejects a step carrying both request forms — all shipped
+    /// fixtures are valid, so only these unit tests exercise the rule.
+    #[test]
+    fn step_rejects_request_and_raw_line_together() {
+        let step = json!({
+            "request": {"id": 1, "method": "lpp/check", "params": {}},
+            "rawLine": "{}",
+            "expectResponse": {"result": null},
+        });
+        let error = serde_json::from_value::<Step>(step)
+            .err()
+            .expect("a step with both request forms must fail");
+        assert!(
+            error
+                .to_string()
+                .contains("exactly one of 'request' or 'rawLine'"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn step_rejects_no_request_form() {
+        let step = json!({
+            "expectResponse": {"result": null},
+        });
+        let error = serde_json::from_value::<Step>(step)
+            .err()
+            .expect("a step with no request form must fail");
+        assert!(
+            error
+                .to_string()
+                .contains("exactly one of 'request' or 'rawLine'"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn step_accepts_each_request_form() {
+        let request_step: Step = serde_json::from_value(json!({
+            "request": {"id": 1, "method": "lpp/check", "params": {}},
+            "expectResponse": {"result": null},
+        }))
+        .expect("request step parses");
+        assert!(matches!(request_step.request, StepRequest::Request(_)));
+
+        let raw_step: Step = serde_json::from_value(json!({
+            "rawLine": "not json",
+            "expectResponse": {"result": null},
+        }))
+        .expect("rawLine step parses");
+        assert!(matches!(raw_step.request, StepRequest::RawLine(_)));
+    }
+}
