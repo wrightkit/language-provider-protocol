@@ -8,6 +8,6 @@
     "1.3"
   ],
   "steps": [
-    {"request":{"id":2,"method":"lpp/compile","params":{"documents":{"file:///project/puzzle.xdl":{"uri":"file:///project/puzzle.xdl","languageId":"x-demo-lang","version":3,"text":"puzzle clean {\n  target = 40\n  start = 10\n  ops {\n    double: x => x * 2\n    plus1: x => x + 1\n  }\n  solution = [ double, double ]\n}"}},"acceptedArtifactFormats":["x-demo/puzzle-eval-v1"]}},"expectResponse":{"error":{"code":-32602,"message":"Invalid params"}}}
+    {"request":{"id":2,"method":"lpp/compile","params":{"documents":{"file:///project/puzzle.xdl":{"uri":"file:///project/puzzle.xdl","languageId":"x-demo-lang","version":3,"text":"puzzle clean {\n  target = 40\n  start = 10\n  ops {\n    double: x => x * 2\n    plus1: x => x + 1\n  }\n  solution = [ double, double ]\n}"}},"acceptedArtifactFormats":["x-demo/puzzle-eval-v1"]}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}}
   ]
 }

@@ -18,7 +18,7 @@ contract:
   source-identity revision, its LPP 1.4 artifact-format negotiation
   revision, and its LPP 1.5 name-lookup revision.
 * `conformance/runner/`: a runner that replays fixtures against any provider
-  binary and compares responses exactly.
+  binary and compares responses.
 * `conformance/mock-provider/`: the reference provider for the demonstration
   language `x-demo-lang` (a puzzle/equation DSL). The mock is
   spawnable as a stdio binary so client-side integration can use it
@@ -28,6 +28,28 @@ Running the suite and interpreting results is documented in
 `conformance/README.md`. Conformance proves wire-contract conformance; it does
 not prove Workshop semantic correctness, game runtime behavior, or
 performance.
+
+### 20.1 Provider-supplied leaves
+
+An `expectResponse` distinguishes contract-owned leaves, compared verbatim,
+from leaves the spec declares provider-supplied. A provider-supplied leaf is
+written `{ "$provider": "<kind>" }` and asserts the leaf's contract shape
+rather than a literal value, so providers other than the reference mock can
+satisfy protocol-scope scenarios:
+
+| Marker | Asserted shape | Where it applies |
+| --- | --- | --- |
+| `nonEmptyString` | any non-empty string | `serverInfo` fields, error `message` prose, `refusalCode`, `details.reason` values the spec does not enumerate |
+| `boolean` | any boolean | `capabilities` values in `lpp/initialize` results; the capability key set itself stays a verbatim assertion |
+| `languageList` | non-empty array of `{ "id": <non-empty string>, "extensions": [<string>] }` | the `languages` array |
+| `protocolVersions` | non-empty array of `MAJOR.MINOR` strings | `supportedProtocolVersions` |
+
+Markers are legal only inside `expectResponse`. Fixtures may mark a leaf only
+where the spec declares it provider-supplied; every other leaf, including the
+marker object's own siblings, keeps verbatim JSON equality. A scenario whose
+`providerArgs` configures a specific adapter may keep the configured leaves —
+such as the capability map it negotiates — verbatim; `providerArgs` is itself
+an adapter-owned surface and makes a scenario adapter-specific.
 
 ## Appendix A: Message and type index
 

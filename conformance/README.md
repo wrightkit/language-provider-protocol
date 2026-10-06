@@ -14,7 +14,7 @@ runner/                Conformance runner that replays fixtures against any prov
 
 * **Fixtures** (`fixtures/v1/`): one JSON file per scenario. Each scenario defines a session with request/response steps, optional CLI flags, and the expected exit code. Responses are compared after JSON parsing so key order does not matter. The directory contains LPP 1.0, LPP 1.1, LPP 1.2, LPP 1.3, LPP 1.4, and LPP 1.5 scenarios. `fixtures/v1/sessions/` holds the standard initialize/shutdown handshake once per protocol version; a scenario whose steps don't themselves exercise the handshake sets `"session": "<version>"` and the runner splices those steps around its own.
 * **Mock provider** (`mock-provider/`): a small Rust binary implementing the full LPP v1 surface for a demonstration language distinct from OPY and OSTW. It runs over stdio so clients (like the Wright LPP client in wrightkit/wright#142) can test against it directly.
-* **Runner** (`runner/`): spawns a fresh provider process per scenario, feeds requests over stdin, validates stdout responses against expectations, and checks the process exit code.
+* **Runner** (`runner/`): spawns a fresh provider process per scenario, feeds requests over stdin, validates stdout responses against expectations, and checks the process exit code. Expected responses compare verbatim except at leaves a fixture marks provider-supplied (see the scenario format below).
 
 ## Running the suite
 
@@ -42,7 +42,8 @@ LPP has no wire dependency on Rust. Any provider that reads newline-delimited JS
 1. Build your provider as a stdio binary.
 2. Run the protocol-scope scenarios:
    `lpp-conformance-runner --provider <your-provider> --scope protocol`
-3. The semantic scenarios use `x-demo-lang` (an equation-puzzle DSL). To test a provider for another language, substitute your own language source texts and artifact payloads while keeping the protocol envelope and message sequence.
+   Scenarios that do not exercise `x-demo-lang` semantics pass out of the box: provider identity (`serverInfo`, `languages`), negotiated capability values, `supportedProtocolVersions`, and provider prose are asserted by contract shape, not by reference-adapter values.
+3. The remaining scenarios are adapter-specific by design: `semantics` scenarios exercise `x-demo-lang` content, and `providerArgs` scenarios configure the reference mock's CLI. To cover those, substitute your own language source texts, artifact payloads, and adapter configuration while keeping the protocol envelope and message sequence.
 
 Passing this suite verifies wire protocol conformance. It does not check Workshop engine correctness or runtime performance.
 
@@ -74,7 +75,11 @@ Passing this suite verifies wire protocol conformance. It does not check Worksho
   own steps call `lpp/initialize` or `lpp/shutdown`; session-behavior tests
   (mismatch, double-init, notifications) keep the handshake explicit.
 * `providerArgs`: optional extra command-line arguments for the provider
-  binary (used to exercise capability negotiation).
+  binary (used to exercise capability negotiation). These name the reference
+  mock's own CLI flags; a scenario carrying `providerArgs` is adapter-specific
+  and third-party providers are not expected to run it verbatim. Its
+  `expectResponse` keeps the negotiated capability map verbatim — the
+  `false` leaves are the assertion the scenario exists for.
 * `projectFiles`: optional relative path/content pairs that the runner writes
   to an isolated temporary project for entry-based project-loading scenarios.
   `${PROJECT_URI}` in requests and expected responses is replaced with that
@@ -86,6 +91,23 @@ Passing this suite verifies wire protocol conformance. It does not check Worksho
   sides, and an `expectResponse` without `id` expects the request's id (null
   for `rawLine` steps). Scenarios that exercise a non-`"2.0"` or unusual id
   keep the fields explicit.
+* Inside `expectResponse`, a leaf of the form `{ "$provider": "<kind>" }`
+  marks a value the spec leaves provider-supplied and asserts its contract
+  shape instead of a literal:
+
+  | Marker | Asserted shape |
+  | --- | --- |
+  | `nonEmptyString` | any non-empty string |
+  | `boolean` | any boolean |
+  | `languageList` | non-empty array of `{ "id", "extensions" }` language entries |
+  | `protocolVersions` | non-empty array of `MAJOR.MINOR` strings |
+
+  Marked leaves are exactly the provider-supplied positions named in
+  [§20.1](../docs/spec/conformance.md#201-provider-supplied-leaves):
+  `serverInfo` fields, `languages`, capability values,
+  `supportedProtocolVersions`, error `message` prose, `refusalCode`, and
+  `details.reason` values the spec does not enumerate. Every other leaf keeps
+  verbatim JSON equality; markers are not valid in `request`.
 * `expectExitCode`: the provider's exit status after stdin is closed (default
   0).
 

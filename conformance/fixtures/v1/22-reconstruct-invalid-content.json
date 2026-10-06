@@ -4,6 +4,6 @@
   "scope": "protocol",
   "session": "1.0",
   "steps": [
-    {"request":{"id":2,"method":"lpp/reconstruct","params":{"artifact":{"format":"x-demo/puzzle-eval-v1","content":"not json"}}},"expectResponse":{"error":{"code":-32000,"message":"artifact content is not a valid puzzle evaluation sheet","data":{"lpp":{"kind":"invalidArtifact","details":{"reason":"malformedArtifactContent"}}}}}}
+    {"request":{"id":2,"method":"lpp/reconstruct","params":{"artifact":{"format":"x-demo/puzzle-eval-v1","content":"not json"}}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"invalidArtifact","details":{"reason":{"$provider":"nonEmptyString"}}}}}}}
   ]
 }

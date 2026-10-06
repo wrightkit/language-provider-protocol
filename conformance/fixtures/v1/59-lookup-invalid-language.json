@@ -5,6 +5,6 @@
   "session": "1.5",
   "providerArgs": ["--protocol-version", "1.5"],
   "steps": [
-    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-other-lang","query":"multiply"}},"expectResponse":{"error":{"code":-32000,"message":"language 'x-other-lang' is not served by this provider","data":{"lpp":{"kind":"invalidLanguage","details":{"languageId":"x-other-lang"}}}}}}
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-other-lang","query":"multiply"}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"invalidLanguage","details":{"languageId":"x-other-lang"}}}}}}
   ]
 }

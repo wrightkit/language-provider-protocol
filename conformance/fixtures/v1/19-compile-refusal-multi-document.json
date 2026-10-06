@@ -4,6 +4,6 @@
   "scope": "protocol",
   "session": "1.0",
   "steps": [
-    {"request":{"id":2,"method":"lpp/compile","params":{"documents":{"file:///project/a.xdl":{"uri":"file:///project/a.xdl","languageId":"x-demo-lang","version":1,"text":"puzzle a {\n  target = 1\n  start = 1\n  ops {\n    one: x => x * 1\n  }\n  solution = [ one ]\n}"},"file:///project/b.xdl":{"uri":"file:///project/b.xdl","languageId":"x-demo-lang","version":1,"text":"puzzle b {\n  target = 1\n  start = 1\n  ops {\n    one: x => x * 1\n  }\n  solution = [ one ]\n}"}}}},"expectResponse":{"error":{"code":-32000,"message":"compile requires exactly one document","data":{"lpp":{"kind":"refusal","details":{"refusalCode":"compile.requiresSingleDocument"}}}}}}
+    {"request":{"id":2,"method":"lpp/compile","params":{"documents":{"file:///project/a.xdl":{"uri":"file:///project/a.xdl","languageId":"x-demo-lang","version":1,"text":"puzzle a {\n  target = 1\n  start = 1\n  ops {\n    one: x => x * 1\n  }\n  solution = [ one ]\n}"},"file:///project/b.xdl":{"uri":"file:///project/b.xdl","languageId":"x-demo-lang","version":1,"text":"puzzle b {\n  target = 1\n  start = 1\n  ops {\n    one: x => x * 1\n  }\n  solution = [ one ]\n}"}}}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"refusal","details":{"refusalCode":{"$provider":"nonEmptyString"}}}}}}}
   ]
 }

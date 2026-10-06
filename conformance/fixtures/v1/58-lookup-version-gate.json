@@ -5,6 +5,6 @@
   "session": "1.4",
   "providerArgs": ["--protocol-version", "1.4"],
   "steps": [
-    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"multiply"}},"expectResponse":{"error":{"code":-32000,"message":"capability 'lookup' is not available","data":{"lpp":{"kind":"capabilityUnavailable","details":{"capability":"lookup","method":"lpp/lookup"}}}}}}
+    {"request":{"id":2,"method":"lpp/lookup","params":{"languageId":"x-demo-lang","query":"multiply"}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"capabilityUnavailable","details":{"capability":"lookup","method":"lpp/lookup"}}}}}}
   ]
 }

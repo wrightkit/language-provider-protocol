@@ -73,9 +73,9 @@ pub(crate) fn run_scenario(
         let actual: Value = serde_json::from_str(&response_line)
             .map_err(|e| format!("step {i}: response is not valid JSON: {e}"))?;
         let expected = substitute_project_uri(&step.expect_response, project.as_ref());
-        if actual != expected {
+        if let Err(detail) = crate::matcher::matches(&expected, &actual) {
             return Err(format!(
-                "step {i}: response mismatch\n  expected: {}\n  actual:   {}",
+                "step {i}: response mismatch at {detail}\n  expected: {}\n  actual:   {}",
                 serde_json::to_string_pretty(&expected).expect("serializes"),
                 serde_json::to_string_pretty(&actual).expect("serializes"),
             ));

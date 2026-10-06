@@ -3,8 +3,8 @@
   "description": "No method except lpp/initialize may be processed before the handshake.",
   "scope": "protocol",
   "steps": [
-    {"request":{"id":1,"method":"lpp/check","params":{"documents":{}}},"expectResponse":{"error":{"code":-32000,"message":"invalid request: session not initialized","data":{"lpp":{"kind":"invalidRequest","details":{"reason":"notInitialized"}}}}}},
-    {"request":{"id":2,"method":"lpp/initialize","params":{"protocolVersion":"1.0"}},"expectResponse":{"result":{"protocolVersion":"1.0","serverInfo":{"name":"lpp-mock-provider","version":"0.1.0"},"languages":[{"id":"x-demo-lang","extensions":["xdl"]}],"capabilities":{"check":true,"compile":true,"reconstruct":true,"symbols":true,"definition":true,"references":true,"rename":true,"editValidation":true}}}},
+    {"request":{"id":1,"method":"lpp/check","params":{"documents":{}}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"invalidRequest","details":{"reason":"notInitialized"}}}}}},
+    {"request":{"id":2,"method":"lpp/initialize","params":{"protocolVersion":"1.0"}},"expectResponse":{"result":{"protocolVersion":"1.0","serverInfo":{"name":{"$provider":"nonEmptyString"},"version":{"$provider":"nonEmptyString"}},"languages":{"$provider":"languageList"},"capabilities":{"check":{"$provider":"boolean"},"compile":{"$provider":"boolean"},"reconstruct":{"$provider":"boolean"},"symbols":{"$provider":"boolean"},"definition":{"$provider":"boolean"},"references":{"$provider":"boolean"},"rename":{"$provider":"boolean"},"editValidation":{"$provider":"boolean"}}}}},
     {"request":{"id":3,"method":"lpp/shutdown","params":{}},"expectResponse":{"result":null}}
   ]
 }

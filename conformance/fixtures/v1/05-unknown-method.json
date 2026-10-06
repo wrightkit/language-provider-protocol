@@ -4,6 +4,6 @@
   "scope": "protocol",
   "session": "1.0",
   "steps": [
-    {"request":{"id":2,"method":"lpp/frobnicate","params":{}},"expectResponse":{"error":{"code":-32601,"message":"Method not found"}}}
+    {"request":{"id":2,"method":"lpp/frobnicate","params":{}},"expectResponse":{"error":{"code":-32601,"message":{"$provider":"nonEmptyString"}}}}
   ]
 }
