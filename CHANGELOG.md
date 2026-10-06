@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.5.0...v1.6.0) (2026-10-06)
+
+
+### Features
+
+* **conformance:** mark provider-supplied leaves in expected responses ([#53](https://github.com/wrightkit/language-provider-protocol/issues/53)) ([f149a4d](https://github.com/wrightkit/language-provider-protocol/commit/f149a4db4668c6349b283f5dbec9b7c1e8f78292))
+
 ## [1.5.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.4.0...v1.5.0) (2026-10-05)
 
 
