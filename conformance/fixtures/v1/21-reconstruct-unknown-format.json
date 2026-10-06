@@ -4,6 +4,6 @@
   "scope": "protocol",
   "session": "1.0",
   "steps": [
-    {"request":{"id":2,"method":"lpp/reconstruct","params":{"artifact":{"format":"x-demo/other-v9","content":"{}"}}},"expectResponse":{"error":{"code":-32000,"message":"artifact format not supported","data":{"lpp":{"kind":"refusal","details":{"refusalCode":"reconstruct.artifactFormatUnsupported","format":"x-demo/other-v9"}}}}}}
+    {"request":{"id":2,"method":"lpp/reconstruct","params":{"artifact":{"format":"x-demo/other-v9","content":"{}"}}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"refusal","details":{"refusalCode":{"$provider":"nonEmptyString"},"format":"x-demo/other-v9"}}}}}}
   ]
 }

@@ -7,6 +7,8 @@ use std::path::Path;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use crate::matcher::validate_leaves;
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Scenario {
@@ -193,6 +195,10 @@ fn validate_scenario(scenario: &Scenario) -> Result<(), String> {
             ));
         }
         validate_expected(&step.expect_response).map_err(|e| format!("step {i}: {e}"))?;
+        validate_leaves(&step.expect_response, true).map_err(|e| format!("step {i}: {e}"))?;
+        if let StepRequest::Request(request) = &step.request {
+            validate_leaves(request, false).map_err(|e| format!("step {i}: {e}"))?;
+        }
     }
     Ok(())
 }

@@ -18,7 +18,7 @@ contract:
   source-identity revision, its LPP 1.4 artifact-format negotiation
   revision, and its LPP 1.5 name-lookup revision.
 * `conformance/runner/`: a runner that replays fixtures against any provider
-  binary and compares responses exactly.
+  binary and compares responses.
 * `conformance/mock-provider/`: the reference provider for the demonstration
   language `x-demo-lang` (a puzzle/equation DSL). The mock is
   spawnable as a stdio binary so client-side integration can use it
@@ -28,6 +28,48 @@ Running the suite and interpreting results is documented in
 `conformance/README.md`. Conformance proves wire-contract conformance; it does
 not prove Workshop semantic correctness, game runtime behavior, or
 performance.
+
+### 20.1 Provider-supplied leaves
+
+An `expectResponse` distinguishes contract-owned leaves, compared verbatim,
+from leaves the spec declares provider-supplied. A provider-supplied leaf is
+written `{ "$provider": "<kind>" }` and asserts the leaf's contract shape
+rather than a literal value, so providers other than the reference mock can
+satisfy protocol-scope scenarios:
+
+| Marker | Asserted shape | Where it applies |
+| --- | --- | --- |
+| `nonEmptyString` | any non-empty string | `serverInfo` fields, error `message` prose, `refusalCode` under `refusal`, `details.reason` under `invalidDocument`, `invalidEntry`, `projectLoadFailed`, and `invalidArtifact` |
+| `boolean` | any boolean | `capabilities` values in `lpp/initialize` results |
+| `languageList` | non-empty array of `{ "id": <non-empty string>, "extensions": [<lowercase extension>] }` | the `languages` array |
+| `protocolVersions` | non-empty array of `MAJOR.MINOR` strings | `supportedProtocolVersions` under `protocolVersionMismatch` |
+
+The marker positions above are a whitelist, and the runner enforces it at
+fixture-validation time — including the sibling context a position depends
+on, such as `data.lpp.kind` or the negotiated `protocolVersion`. A marker on
+any other leaf — for example `protocolVersion`, `error.code`, a
+spec-enumerated `invalidRequest` reason, or an undeclared capability id — is
+a fixture error, as is a marker inside `request`.
+
+Two positions carry extra fixture rules:
+
+* A `capabilities` object that carries markers must mark exactly the
+  capability ids declared for the negotiated `protocolVersion` — no missing
+  or undeclared ids, and no markers mixed with verbatim values. This keeps
+  the closed capability set (§7.3) a normative assertion: a response that
+  advertises an undeclared id still fails, while a response that omits ids
+  it does not offer passes, since absent means not advertised. A scenario
+  asserting a specific negotiated subset — such as one configured through
+  `providerArgs` — keeps its capability map verbatim instead, and a verbatim
+  map keeps exact key matching: asserting `reconstruct: false` fails when
+  the provider omits `reconstruct` entirely.
+* `details.reason` may be marked only under the error kinds whose values the
+  spec does not enumerate; the `invalidRequest` reasons are a closed set and
+  stay verbatim.
+
+Every unmarked leaf, including a marker object's own siblings, keeps verbatim
+JSON equality. `providerArgs` is an adapter-owned surface and makes a
+scenario adapter-specific.
 
 ## Appendix A: Message and type index
 

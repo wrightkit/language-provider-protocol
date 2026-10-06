@@ -6,6 +6,6 @@
   "providerArgs": ["--protocol-version", "1.1"],
   "projectFiles": {"present.xdl":""},
   "steps": [
-    {"request":{"id":2,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}/missing.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"error":{"code":-32000,"message":"project entry could not be loaded","data":{"lpp":{"kind":"projectLoadFailed","details":{"entryUri":"${PROJECT_URI}/missing.xdl","reason":"entryNotFound","uri":"${PROJECT_URI}/missing.xdl"}}}}}}
+    {"request":{"id":2,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}/missing.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"projectLoadFailed","details":{"entryUri":"${PROJECT_URI}/missing.xdl","reason":{"$provider":"nonEmptyString"},"uri":"${PROJECT_URI}/missing.xdl"}}}}}}
   ]
 }

@@ -4,20 +4,20 @@
     "expectResponse": {
       "result": {
         "protocolVersion": "1.5",
-        "serverInfo": { "name": "lpp-mock-provider", "version": "0.1.0" },
-        "languages": [{ "id": "x-demo-lang", "extensions": ["xdl"] }],
+        "serverInfo": { "name": { "$provider": "nonEmptyString" }, "version": { "$provider": "nonEmptyString" } },
+        "languages": { "$provider": "languageList" },
         "capabilities": {
-          "check": true,
-          "compile": true,
-          "reconstruct": true,
-          "symbols": true,
-          "definition": true,
-          "references": true,
-          "rename": true,
-          "editValidation": true,
-          "projectLoading": true,
-          "sourceIdentity": true,
-          "lookup": true
+          "check": { "$provider": "boolean" },
+          "compile": { "$provider": "boolean" },
+          "reconstruct": { "$provider": "boolean" },
+          "symbols": { "$provider": "boolean" },
+          "definition": { "$provider": "boolean" },
+          "references": { "$provider": "boolean" },
+          "rename": { "$provider": "boolean" },
+          "editValidation": { "$provider": "boolean" },
+          "projectLoading": { "$provider": "boolean" },
+          "sourceIdentity": { "$provider": "boolean" },
+          "lookup": { "$provider": "boolean" }
         }
       }
     }

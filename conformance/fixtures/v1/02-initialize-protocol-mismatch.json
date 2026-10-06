@@ -3,6 +3,6 @@
   "description": "The provider must reject an unsupported protocol version and list the versions it supports. The session ends with EOF on stdin.",
   "scope": "protocol",
   "steps": [
-    {"request":{"id":1,"method":"lpp/initialize","params":{"protocolVersion":"0.9"}},"expectResponse":{"error":{"code":-32000,"message":"unsupported protocol version 0.9","data":{"lpp":{"kind":"protocolVersionMismatch","details":{"supportedProtocolVersions":["1.0"]}}}}}}
+    {"request":{"id":1,"method":"lpp/initialize","params":{"protocolVersion":"0.9"}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"protocolVersionMismatch","details":{"supportedProtocolVersions":{"$provider":"protocolVersions"}}}}}}}
   ]
 }

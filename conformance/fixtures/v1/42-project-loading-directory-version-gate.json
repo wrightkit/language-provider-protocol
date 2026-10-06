@@ -8,6 +8,6 @@
     "entry.xdl": "puzzle entry {\n  target = 2\n  start = 1\n  ops {\n    plus1: x => x + 1\n  }\n  solution = [ plus1 ]\n}\n"
   },
   "steps": [
-    {"request":{"id":2,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}","languageId":"x-demo-lang","version":7,"kind":"directory"}}},"expectResponse":{"error":{"code":-32000,"message":"directory project targets require protocol version 1.2","data":{"lpp":{"kind":"invalidEntry","details":{"entryUri":"${PROJECT_URI}","reason":"unsupportedKind"}}}}}}
+    {"request":{"id":2,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}","languageId":"x-demo-lang","version":7,"kind":"directory"}}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"invalidEntry","details":{"entryUri":"${PROJECT_URI}","reason":{"$provider":"nonEmptyString"}}}}}}}
   ]
 }

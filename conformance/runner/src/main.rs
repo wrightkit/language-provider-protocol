@@ -1,9 +1,11 @@
 //! `lpp-conformance-runner`: replays LPP v1 fixtures against a provider
 //! binary. `scenario` owns the fixture schema and structural validation,
 //! `project_fixture` owns the materialized `projectFiles` tree and
-//! `${PROJECT_URI}` substitution, and `session` owns the spawned provider
-//! exchange. Fixtures must stay deterministic and self-contained.
+//! `${PROJECT_URI}` substitution, `matcher` owns the expected-response
+//! comparison including provider-owned leaves, and `session` owns the spawned
+//! provider exchange. Fixtures must stay deterministic and self-contained.
 
+mod matcher;
 mod project_fixture;
 mod scenario;
 mod session;

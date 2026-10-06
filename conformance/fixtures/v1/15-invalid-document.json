@@ -5,6 +5,6 @@
   "session": "1.0",
   "steps": [
     {"request":{"id":2,"method":"lpp/check","params":{"documents":{}}},"expectResponse":{"result":{"documents":[]}}},
-    {"request":{"id":3,"method":"lpp/check","params":{"documents":{"file:///project/puzzle.xdl":{"uri":"file:///project/puzzle.xdl","languageId":"x-demo-lang","version":-1,"text":"puzzle clean {\n  target = 40\n}"}}}},"expectResponse":{"error":{"code":-32000,"message":"document version must be a non-negative integer","data":{"lpp":{"kind":"invalidDocument","details":{"uri":"file:///project/puzzle.xdl","reason":"invalidVersion"}}}}}}
+    {"request":{"id":3,"method":"lpp/check","params":{"documents":{"file:///project/puzzle.xdl":{"uri":"file:///project/puzzle.xdl","languageId":"x-demo-lang","version":-1,"text":"puzzle clean {\n  target = 40\n}"}}}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"invalidDocument","details":{"uri":"file:///project/puzzle.xdl","reason":{"$provider":"nonEmptyString"}}}}}}}
   ]
 }

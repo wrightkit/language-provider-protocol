@@ -6,9 +6,9 @@
   "providerArgs": ["--protocol-version", "1.1"],
   "projectFiles": {"entry.xdl":""},
   "steps": [
-    {"request":{"id":2,"method":"lpp/check","params":{"documents":{},"entry":{"uri":"${PROJECT_URI}/entry.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"error":{"code":-32602,"message":"Invalid params"}}},
-    {"request":{"id":3,"method":"lpp/check","params":{}},"expectResponse":{"error":{"code":-32602,"message":"Invalid params"}}},
-    {"request":{"id":4,"method":"lpp/check","params":{"entry":{"uri":"untitled:entry.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"error":{"code":-32000,"message":"project entry must be an absolute file URI","data":{"lpp":{"kind":"invalidEntry","details":{"entryUri":"untitled:entry.xdl","reason":"unsupportedUri"}}}}}},
-    {"request":{"id":5,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}/entry.xdl","languageId":"x-demo-lang","version":-1}}},"expectResponse":{"error":{"code":-32000,"message":"project entry version must be a non-negative integer","data":{"lpp":{"kind":"invalidEntry","details":{"entryUri":"${PROJECT_URI}/entry.xdl","reason":"invalidVersion"}}}}}}
+    {"request":{"id":2,"method":"lpp/check","params":{"documents":{},"entry":{"uri":"${PROJECT_URI}/entry.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}},
+    {"request":{"id":3,"method":"lpp/check","params":{}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}},
+    {"request":{"id":4,"method":"lpp/check","params":{"entry":{"uri":"untitled:entry.xdl","languageId":"x-demo-lang","version":7}}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"invalidEntry","details":{"entryUri":"untitled:entry.xdl","reason":{"$provider":"nonEmptyString"}}}}}}},
+    {"request":{"id":5,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}/entry.xdl","languageId":"x-demo-lang","version":-1}}},"expectResponse":{"error":{"code":-32000,"message":{"$provider":"nonEmptyString"},"data":{"lpp":{"kind":"invalidEntry","details":{"entryUri":"${PROJECT_URI}/entry.xdl","reason":{"$provider":"nonEmptyString"}}}}}}}
   ]
 }
