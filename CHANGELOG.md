@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.6.0...v1.7.0) (2026-10-10)
+
+
+### Features
+
+* **protocol:** add canonical id resolution via lpp/resolveIds ([#56](https://github.com/wrightkit/language-provider-protocol/issues/56)) ([e285d2c](https://github.com/wrightkit/language-provider-protocol/commit/e285d2c91346a9b673bf56bf2a365dcfd538929d))
+
 ## [1.6.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.5.0...v1.6.0) (2026-10-06)
 
 
