@@ -82,7 +82,8 @@ clients MUST NOT parse `message`.
   optional `sourceIdentity` capability for entry-based compile results, and
   LPP 1.4 adds `acceptedArtifactFormats` artifact format negotiation to
   `lpp/compile`. LPP 1.5 adds the optional `lookup` capability and the
-  `lpp/lookup` method.
+  `lpp/lookup` method, and LPP 1.6 adds the optional `resolveIds`
+  capability and the `lpp/resolveIds` method.
 * `MAJOR` changes are breaking: message shapes, method semantics, or framing
   may change. A breaking change always produces a new MAJOR version, and
   clients and providers speaking different MAJOR versions are never expected
@@ -111,7 +112,9 @@ clients MUST NOT parse `message`.
   request `"1.3"` or later and require `sourceIdentity: true` in the result
   capabilities. Clients that send `acceptedArtifactFormats` MUST request
   `"1.4"` or later. Clients that need name lookup MUST request `"1.5"` or
-  later and require `lookup: true` in the result capabilities.
+  later and require `lookup: true` in the result capabilities. Clients that
+  need canonical id resolution MUST request `"1.6"` or later and require
+  `resolveIds: true`.
 * A provider MUST support at least one of the versions it lists in
   `supportedProtocolVersions`.
 

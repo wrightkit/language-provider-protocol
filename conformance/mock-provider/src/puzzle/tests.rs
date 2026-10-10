@@ -334,3 +334,24 @@ fn identifier_rules_match_the_lexer() {
     assert!(!is_valid_identifier(""));
     assert!(!is_valid_identifier("a-b"));
 }
+
+#[test]
+fn resolve_ids_omits_unmapped_ids_and_empty_domains() {
+    use super::spellings::resolve_ids;
+    use std::collections::BTreeMap;
+    let enums = BTreeMap::from([
+        (
+            "Status".to_string(),
+            vec!["STUNNED".into(), "HASTED".into()],
+        ),
+        ("Team".to_string(), vec!["ALL".into()]),
+    ]);
+    let result = resolve_ids(&["applyImpulse".into(), "noSuchCall".into()], &enums);
+    assert_eq!(
+        result,
+        serde_json::json!({
+            "calls": { "applyImpulse": "shove" },
+            "enums": { "Status": { "STUNNED": "stunned" } }
+        })
+    );
+}

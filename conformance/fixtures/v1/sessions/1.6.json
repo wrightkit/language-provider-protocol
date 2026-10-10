@@ -1,0 +1,30 @@
+{
+  "initialize": {
+    "request": { "id": "init", "method": "lpp/initialize", "params": { "protocolVersion": "1.6" } },
+    "expectResponse": {
+      "result": {
+        "protocolVersion": "1.6",
+        "serverInfo": { "name": { "$provider": "nonEmptyString" }, "version": { "$provider": "nonEmptyString" } },
+        "languages": { "$provider": "languageList" },
+        "capabilities": {
+          "check": { "$provider": "boolean" },
+          "compile": { "$provider": "boolean" },
+          "reconstruct": { "$provider": "boolean" },
+          "symbols": { "$provider": "boolean" },
+          "definition": { "$provider": "boolean" },
+          "references": { "$provider": "boolean" },
+          "rename": { "$provider": "boolean" },
+          "editValidation": { "$provider": "boolean" },
+          "projectLoading": { "$provider": "boolean" },
+          "sourceIdentity": { "$provider": "boolean" },
+          "lookup": { "$provider": "boolean" },
+          "resolveIds": { "$provider": "boolean" }
+        }
+      }
+    }
+  },
+  "shutdown": {
+    "request": { "id": "shutdown", "method": "lpp/shutdown", "params": {} },
+    "expectResponse": { "result": null }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "resolve-ids-invalid-params",
+  "description": "Malformed resolveIds params are rejected with -32602: a missing languageId, wrong element types, and wrong container types.",
+  "scope": "protocol",
+  "session": "1.6",
+  "providerArgs": ["--protocol-version", "1.6"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/resolveIds","params":{"calls":["applyImpulse"]}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}},
+    {"request":{"id":3,"method":"lpp/resolveIds","params":{"languageId":"x-demo-lang","calls":[1]}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}},
+    {"request":{"id":4,"method":"lpp/resolveIds","params":{"languageId":"x-demo-lang","calls":"applyImpulse"}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}},
+    {"request":{"id":5,"method":"lpp/resolveIds","params":{"languageId":"x-demo-lang","enums":["Status"]}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}},
+    {"request":{"id":6,"method":"lpp/resolveIds","params":{"languageId":"x-demo-lang","enums":{"Status":"STUNNED"}}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}}
+  ]
+}

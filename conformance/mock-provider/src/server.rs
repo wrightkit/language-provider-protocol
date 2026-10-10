@@ -12,7 +12,7 @@ use crate::rpc::{lpp_error, ok, parse_params, std_error};
 use crate::wire::InitParams;
 
 /// Protocol versions accepted by `--protocol-version`.
-pub(crate) const PROTOCOL_VERSIONS: [&str; 6] = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5"];
+pub(crate) const PROTOCOL_VERSIONS: [&str; 7] = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6"];
 pub(crate) const DEFAULT_PROTOCOL_VERSION: &str = PROTOCOL_VERSIONS[0];
 pub(crate) const LANGUAGE_ID: &str = "x-demo-lang";
 
@@ -33,6 +33,7 @@ const CAPABILITIES: &[(&str, u32)] = &[
     ("projectLoading", 1),
     ("sourceIdentity", 3),
     ("lookup", 5),
+    ("resolveIds", 6),
 ];
 
 fn minor_of(version: &str) -> Option<u32> {

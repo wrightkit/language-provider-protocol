@@ -23,7 +23,7 @@ Initialization and capability negotiation. The client MUST send
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocolVersion` | string | The protocol version the client wants to speak: `"1.0"`, `"1.1"`, `"1.2"`, `"1.3"`, `"1.4"`, or `"1.5"`. |
+| `protocolVersion` | string | The protocol version the client wants to speak: `"1.0"`, `"1.1"`, `"1.2"`, `"1.3"`, `"1.4"`, `"1.5"`, or `"1.6"`. |
 | `clientInfo` | object, OPTIONAL | `{ "name": string, "version": string }` identifying the client. |
 
 ### 7.2 Result
@@ -50,10 +50,10 @@ Initialization and capability negotiation. The client MUST send
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `protocolVersion` | string | The protocol version the provider will speak: `"1.0"`, `"1.1"`, `"1.2"`, `"1.3"`, `"1.4"`, or `"1.5"`. |
+| `protocolVersion` | string | The protocol version the provider will speak: `"1.0"`, `"1.1"`, `"1.2"`, `"1.3"`, `"1.4"`, `"1.5"`, or `"1.6"`. |
 | `serverInfo` | object | `{ "name": string, "version": string }` identifying the provider. |
 | `languages` | array | One entry per source language the provider serves. |
-| `capabilities` | object | The capabilities the provider advertises, as one boolean field per capability id. The object itself is required; its keys are drawn from the capability ids declared for the negotiated version (Section 7.3): LPP 1.0 declares the eight listed below, LPP 1.1 adds `projectLoading`, LPP 1.3 adds `sourceIdentity`, and LPP 1.5 adds `lookup`. A provider MAY advertise any subset — an absent id means not offered, equivalent to `false`. |
+| `capabilities` | object | The capabilities the provider advertises, as one boolean field per capability id. The object itself is required; its keys are drawn from the capability ids declared for the negotiated version (Section 7.3): LPP 1.0 declares the eight listed below, LPP 1.1 adds `projectLoading`, LPP 1.3 adds `sourceIdentity`, and LPP 1.5 adds `lookup`, and LPP 1.6 adds `resolveIds`. A provider MAY advertise any subset — an absent id means not offered, equivalent to `false`. |
 
 Each language entry: `{ "id": string, "extensions": [string] }`. `extensions`
 is the list of file extensions the provider associates with the language,
@@ -78,6 +78,7 @@ extension.
 | `projectLoading` | `lpp/check`, `lpp/compile` | Accept a client-selected entry or directory target and load its filesystem-backed source project. LPP 1.1 and later. |
 | `sourceIdentity` | `lpp/compile` | Return the provider-selected primary source identity for an entry-based compile result. LPP 1.3 and later. |
 | `lookup` | `lpp/lookup` | Resolve free-text name guesses to language spellings and signature facts. LPP 1.5 and later. |
+| `resolveIds` | `lpp/resolveIds` | Map canonical Workshop ids to language spellings. LPP 1.6 and later. |
 
 * The provider MUST set each capability to `true` only if it fully implements
   the corresponding method(s).

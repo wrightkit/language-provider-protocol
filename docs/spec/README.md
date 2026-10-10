@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| Protocol versions | `1.0`, `1.1`, `1.2`, `1.3`, `1.4`, `1.5` |
+| Protocol versions | `1.0`, `1.1`, `1.2`, `1.3`, `1.4`, `1.5`, `1.6` |
 | Status | Normative for protocol major version 1 |
 | Transport | JSON-RPC 2.0 over stdio, newline-delimited framing |
 | Conformance | `conformance/fixtures/v1/` + `conformance/runner` + `conformance/mock-provider` |
@@ -26,6 +26,7 @@ Section numbering remains stable across files.
 - [Errors and protocol evolution](errors-and-versioning.md) — sections 18–19
 - [Conformance and appendices](conformance.md) — section 20 and appendices
 - [Name lookup](name-lookup.md) — section 21
+- [Canonical id resolution](resolve-ids.md) — section 22
 
 Read only the sections relevant to the implementation task. The files together form one versioned protocol contract.
 

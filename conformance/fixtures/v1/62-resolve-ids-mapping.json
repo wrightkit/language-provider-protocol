@@ -1,0 +1,12 @@
+{
+  "name": "resolve-ids-mapping",
+  "description": "resolveIds maps requested canonical ids to the language's spellings: calls by id, enum members grouped by domain. Ids the language does not map, and domains with no mapped member, are omitted rather than reported.",
+  "scope": "semantics",
+  "session": "1.6",
+  "providerArgs": ["--protocol-version", "1.6"],
+  "steps": [
+    {"request":{"id":2,"method":"lpp/resolveIds","params":{"languageId":"x-demo-lang","calls":["applyImpulse","setStatusEffect"],"enums":{"Status":["STUNNED"]}}},"expectResponse":{"result":{"calls":{"applyImpulse":"shove","setStatusEffect":"afflict"},"enums":{"Status":{"STUNNED":"stunned"}}}}},
+    {"request":{"id":3,"method":"lpp/resolveIds","params":{"languageId":"x-demo-lang","calls":["applyImpulse","loweredOnlyConstruct"],"enums":{"Status":["STUNNED","UNMAPPED_MEMBER"],"UnmappedDomain":["ANY"]}}},"expectResponse":{"result":{"calls":{"applyImpulse":"shove"},"enums":{"Status":{"STUNNED":"stunned"}}}}},
+    {"request":{"id":4,"method":"lpp/resolveIds","params":{"languageId":"x-demo-lang"}},"expectResponse":{"result":{"calls":{},"enums":{}}}}
+  ]
+}

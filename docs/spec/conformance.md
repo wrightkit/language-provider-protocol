@@ -16,7 +16,8 @@ contract:
   scenario's `session` field. The same directory covers LPP 1.0, its LPP 1.1
   file-entry revision, its LPP 1.2 directory-target revision, its LPP 1.3
   source-identity revision, its LPP 1.4 artifact-format negotiation
-  revision, and its LPP 1.5 name-lookup revision.
+  revision, its LPP 1.5 name-lookup revision, and its LPP 1.6
+  canonical-id-resolution revision.
 * `conformance/runner/`: a runner that replays fixtures against any provider
   binary and compares responses.
 * `conformance/mock-provider/`: the reference provider for the demonstration
@@ -88,6 +89,7 @@ Methods:
 | `lpp/rename` | `rename` | `{ documents, positionDocumentUri, position, newName, projectRoot? }` | `{ edits: [{ documentUri, version, textEdits }] }` |
 | `lpp/validateEdits` | `editValidation` | `{ document, edits }` | `{ valid, version, reason?, failingEditIndex? }` |
 | `lpp/lookup` | `lookup` (LPP 1.5) | `{ languageId, query?, kind?, within?, locale?, limit? }` | `{ entries: [{ identity, kind, spelling, displayName, callable?, enum?, parameter?, setting? }] }` |
+| `lpp/resolveIds` | `resolveIds` (LPP 1.6) | `{ languageId, calls?, enums? }` | `{ calls, enums }` |
 
 Types: `Position`, `Range`, `TextEdit`, `Document`, `DocumentSet`, `ProjectEntry`,
 `Diagnostic`, `Location`, `Symbol`, `WorkshopArtifact` (see

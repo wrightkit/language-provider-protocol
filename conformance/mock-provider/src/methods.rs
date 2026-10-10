@@ -21,7 +21,7 @@ use crate::rpc::{HandlerError, parse_params};
 use crate::server::{LANGUAGE_ID, Server};
 use crate::wire::{
     DocsParams, Document, LookupParams, PositionParams, ReconstructParams, ReferencesParams,
-    RenameParams, ValidateEditsParams,
+    RenameParams, ResolveIdsParams, ValidateEditsParams,
 };
 
 /// A dispatchable `lpp/*` method: wire name, gating capability, handler.
@@ -78,6 +78,11 @@ pub(crate) const METHODS: &[Method] = &[
         name: "lpp/lookup",
         capability: "lookup",
         handler: Server::lookup,
+    },
+    Method {
+        name: "lpp/resolveIds",
+        capability: "resolveIds",
+        handler: Server::resolve_ids,
     },
 ];
 
@@ -344,7 +349,32 @@ impl Server {
         })?;
         Ok(json!({ "entries": entries }))
     }
+
+    fn resolve_ids(&self, params: Value) -> Result<Value, HandlerError> {
+        let params: ResolveIdsParams = parse_params(params)?;
+        if params.language_id != LANGUAGE_ID {
+            return Err(HandlerError::lpp(
+                "invalidLanguage",
+                json!({ "languageId": params.language_id }),
+                format!(
+                    "language '{}' is not served by this provider",
+                    params.language_id
+                ),
+            ));
+        }
+        let calls = params.calls.unwrap_or_default();
+        let enums = params.enums.unwrap_or_default();
+        let total = calls.len() + enums.values().map(Vec::len).sum::<usize>();
+        if total > MAX_RESOLVE_IDS {
+            return Err(HandlerError::invalid_params());
+        }
+        Ok(puzzle::resolve_ids(&calls, &enums))
+    }
 }
+
+/// The most ids (calls plus enum members, duplicates counted) one
+/// `lpp/resolveIds` request may carry.
+const MAX_RESOLVE_IDS: usize = 1024;
 
 /// The provider-side bound applied when a request omits `limit`.
 const DEFAULT_LOOKUP_LIMIT: u32 = 20;

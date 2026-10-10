@@ -1,7 +1,7 @@
 //! Wire parameter shapes for the LPP v1 methods the mock provider serves.
 //! Field names follow the spec's camelCase JSON keys via serde.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
@@ -111,6 +111,16 @@ pub(crate) struct LookupParams {
     #[allow(dead_code)]
     pub locale: Option<String>,
     pub limit: Option<u32>,
+}
+
+/// `lpp/resolveIds` params; element types are enforced by deserialization
+/// and the total bound by the handler.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ResolveIdsParams {
+    pub language_id: String,
+    pub calls: Option<Vec<String>>,
+    pub enums: Option<BTreeMap<String, Vec<String>>>,
 }
 
 #[derive(Deserialize)]

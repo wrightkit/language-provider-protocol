@@ -10,6 +10,7 @@ mod catalog;
 mod edits;
 mod lex;
 mod parse;
+mod spellings;
 mod symbols;
 mod text;
 
@@ -20,6 +21,7 @@ pub(crate) use artifact::{
 pub(crate) use catalog::{LookupScope, lookup};
 pub(crate) use edits::{EditValidation, validate_edits};
 pub(crate) use parse::parse_document;
+pub(crate) use spellings::resolve_ids;
 pub(crate) use symbols::{Symbol, is_valid_identifier};
 pub(crate) use text::{Position, Range, SourceText};
 

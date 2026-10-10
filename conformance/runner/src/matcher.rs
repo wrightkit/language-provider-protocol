@@ -44,6 +44,7 @@ const CAPABILITY_IDS: &[&str] = &[
     "projectLoading",
     "sourceIdentity",
     "lookup",
+    "resolveIds",
 ];
 
 /// The capability ids a negotiated protocol version declares.
@@ -53,6 +54,7 @@ fn declared_capability_ids(root: &Value) -> Option<&'static [&'static str]> {
         "1.1" | "1.2" => 9,
         "1.3" | "1.4" => 10,
         "1.5" => 11,
+        "1.6" => 12,
         _ => return None,
     };
     Some(&CAPABILITY_IDS[..count])
