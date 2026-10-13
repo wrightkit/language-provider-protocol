@@ -90,7 +90,6 @@ conformance; state the evidence level and boundary.
 ## Delivery
 
 * Use Conventional Commits (`type(scope): subject`).
-* Work on independent branches; deliver through PRs; do not push to `main`.
 * Review the complete diff and run `git diff --check` before committing.
 * Stage only task-owned files; preserve unrelated dirt.
 * Never commit credentials, private runtime data, or unreviewed third-party
@@ -98,20 +97,6 @@ conformance; state the evidence level and boundary.
 * Canonical repository-facing content is written in English. Preserve protocol
   identifiers exactly as defined in the spec.
 
-
 ## Documentation
 
-`docs/README.md` is the durable documentation index. Keep durable protocol and
-architecture documentation under `docs/` and use progressive disclosure:
-higher-level files route to the smallest relevant specification or decision
-document instead of accumulating unrelated protocol detail.
-
-If a change materially changes protocol behavior, a public wire contract,
-architecture, ownership, contributor workflow, or conformance procedure, update
-the owning durable documentation in the same PR when applicable. Review must
-explicitly check documentation impact.
-
-When adding, splitting, moving, or retiring durable documentation, update
-`docs/README.md` and affected links. Keep mutable progress and current execution
-state in Issues, PRs, CI, releases, or generated output rather than durable
-documentation.
+Durable documentation follows the shared documentation policy; `docs/README.md` is this repository's index.
