@@ -1,90 +1,39 @@
 # Language Provider Protocol
 
-The Language Provider Protocol (LPP) is a versioned protocol between tooling
-clients and long-running language-provider processes in the WrightKit
-ecosystem.
+The Language Provider Protocol (LPP) is a versioned protocol that lets tools
+such as [Wright](https://github.com/wrightkit/wright), editors, and agents talk
+to language-provider processes. A provider exposes diagnostics, symbol queries,
+compilation, and source edits for one language over JSON-RPC, without sharing
+its internal AST.
 
-The protocol allows independent compilers (such as `opy-rs` and `del-rs`) to
-expose diagnostics, symbol queries, and refactoring operations to tooling clients
-(such as Wright or IDE plugins) over a clean, versioned RPC interface without
-coupling their internal ASTs. Compilers remain independently usable via their own
-libraries and CLIs without depending on Wright.
+[`opy-rs`](https://github.com/wrightkit/opy-rs) and
+[`deltin-rs`](https://github.com/wrightkit/deltin-rs) are independent
+compilers that can optionally run as LPP providers.
 
-LPP therefore decouples tooling integration from implementation ownership:
+## Implementing a provider
 
-```text
-standalone language implementation
-    ├─ library / CLI
-    └─ optional LPP provider process
-              ↓
-         tooling clients
-      Wright / agents / editors
-```
+1. Read the [specification](docs/spec/README.md). It is enough to build a
+   provider.
+2. Run the conformance suite against your provider:
 
-LPP passes source text, positions, diagnostics, semantic-query results, and
-source-level edits without exposing provider ASTs/HIR or Wright internal
-representations. It does not prescribe how a language implementation organizes
-its frontend, compiler, reconstruction, or Workshop integration internally.
+   ```sh
+   cargo build --release --bin lpp-mock-provider --bin lpp-conformance-runner
+   ./target/release/lpp-conformance-runner --provider ./your-provider --fixtures conformance/fixtures/v1
+   ```
 
-## Status
-
-- Protocol versions: **1.0**, additive **1.1** file-entry loading, additive **1.2** directory targets, and additive **1.3** source identity for entry-based compilation, and additive **1.4** artifact format negotiation for `lpp/compile`, and additive **1.5** name lookup via `lpp/lookup`, and additive **1.6** canonical id resolution via `lpp/resolveIds` (specified in [`docs/spec/README.md`](docs/spec/README.md)).
-- Repository state: initial published contract and conformance suite.
-- Wright is a client/consumer of the protocol; LPP is not a dependency from the
-  language implementation back into Wright tooling internals.
-
-## Repository layout
-
-```text
-AGENTS.md                    Repository ownership, routing, and validation rules
-LICENSE                      MIT License
-docs/spec/README.md               Normative LPP v1 specification
-docs/adr/                    Architecture Decision Records for material LPP choices
-conformance/README.md        Provider conformance workflow
-conformance/common/          File-URI codec shared by runner and mock provider
-conformance/fixtures/v1/     Versioned JSON-RPC message fixtures
-conformance/mock-provider/   Reference mock provider for x-demo-lang
-conformance/runner/          Conformance runner for provider binaries
-```
+See [`conformance/README.md`](conformance/README.md) for details. Passing
+conformance shows the protocol is handled correctly, not that the underlying
+compiler supports every language feature.
 
 ## Documentation
 
-Durable protocol documentation is indexed in [`docs/README.md`](docs/README.md). The normative LPP v1 contract starts at [`docs/spec/README.md`](docs/spec/README.md) and is split by protocol concern for progressive disclosure.
+See [`docs/README.md`](docs/README.md) for the specification index and
+architecture decisions.
 
-## Specification and conformance
+## Contributing
 
-- Read [`docs/spec/README.md`](docs/spec/README.md) for the wire specification. A provider
-  can be implemented using only the specification and conformance fixtures.
-- Read [`docs/adr/README.md`](docs/adr/README.md) for the registry and rationale
-  behind material process and wire-boundary decisions.
-- See [`conformance/README.md`](conformance/README.md) for the fixture runner and
-  mock-provider workflow.
+Read [`AGENTS.md`](AGENTS.md) first.
 
-Passing conformance confirms that an implementation handles protocol messages
-correctly. It does not certify that the underlying compiler supports every
-syntax feature of the language.
+## License
 
-## Validation
-
-```text
-cargo fmt --all --check
-cargo clippy --all-targets -- -D warnings
-cargo test --workspace
-./target/release/lpp-conformance-runner --validate-only --fixtures conformance/fixtures/v1
-./target/release/lpp-conformance-runner --provider ./target/release/lpp-mock-provider --fixtures conformance/fixtures/v1
-```
-
-CI runs the Rust checks and the full conformance run on every push and pull
-request.
-
-## Licensing and provenance
-
-This repository is licensed under the MIT License. The specification and
-conformance fixtures are free to use in any implementation. Implementations
-that expose an LPP provider do not need to use the MIT License for their own
-code.
-
-The specification was written from scratch for WrightKit without copying code
-or text from upstream compilers or language services. Upstream projects such as
-OverPy and OSTW remain external compatibility references for their respective
-implementations, not for the LPP protocol itself.
+MIT. Providers built on LPP may use any license.
