@@ -171,6 +171,19 @@ fn trailing_newline_phantom_line_is_a_valid_position() {
 }
 
 #[test]
+fn crlf_terminator_does_not_count_toward_character() {
+    // "\r\n" is the line terminator, not content: positions at its bytes map
+    // to end-of-line, never past the visible line length.
+    let src = SourceText::new("aaaaaaaaaa\r\nb");
+    assert_eq!(src.position_of(10), pos(0, 10)); // '\r' byte -> end of line 0
+    assert_eq!(src.position_of(11), pos(0, 10)); // '\n' byte -> end of line 0
+    assert_eq!(src.position_of(12), pos(1, 0));
+    // A lone '\r' mid-line is content.
+    let src = SourceText::new("a\rb\nc");
+    assert_eq!(src.position_of(3), pos(0, 3));
+}
+
+#[test]
 fn compile_reconstruct_round_trip() {
     let out = parse_document(CLEAN);
     let puzzle = out.puzzle.expect("parsed");

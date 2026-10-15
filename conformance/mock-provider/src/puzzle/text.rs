@@ -105,8 +105,10 @@ impl<'a> SourceText<'a> {
             Ok(i) => i,
             Err(i) => i - 1,
         };
-        let (start, _) = self.line_byte_range(line);
-        let units = self.text[start..byte]
+        // Positions count content only: a byte inside the line terminator
+        // ("\r\n" or "\n") maps to the end of the line.
+        let (start, end) = self.line_byte_range(line);
+        let units = self.text[start..byte.min(end)]
             .chars()
             .map(char::len_utf16)
             .sum::<usize>();
