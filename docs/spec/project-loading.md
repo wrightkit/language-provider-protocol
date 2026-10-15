@@ -139,7 +139,11 @@ Document-scoped methods share this parameter shape:
 In LPP 1.1 and later, `lpp/check` and `lpp/compile` accept either `documents` or
 `entry`, but not both. An `entry` request is available only when the provider
 accepted protocol version `1.1` or later and advertised
-`projectLoading: true`.
+`projectLoading: true`. An `entry` sent in a session that negotiated a version
+earlier than 1.1 is a version-gated field and MUST be rejected with JSON-RPC
+`-32602`; in a session at 1.1 or later where `projectLoading` was not
+advertised, it MUST be rejected with an LPP error of kind
+`capabilityUnavailable`.
 The optional `projectRoot` field remains legal and is informational; the
 provider accepts it but determines the effective project root and source
 closure from the entry and the source language's rules.
@@ -184,7 +188,8 @@ also include the affected `uri`.
 
 ### 8.2 Directory project requests (LPP 1.2 and later)
 
-LPP 1.2 and later extend the `entry` object with `kind: "directory"`:
+The `kind` field itself is defined since LPP 1.1 (`"file"` or omitted); LPP
+1.2 and later add `"directory"` to the set of values `kind` accepts:
 
 ```json
 {

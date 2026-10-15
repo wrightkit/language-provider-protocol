@@ -50,7 +50,7 @@ All LPP-defined errors use JSON-RPC error code `-32000` and carry a structured
 | `invalidRequest` | `{ "reason": string }` | Session violations: `notInitialized`, `alreadyInitialized`, `notificationNotSupported`. |
 | `invalidLanguage` | `{ "languageId": string }` | A document's `languageId` is not served by the provider. |
 | `invalidDocument` | `{ "uri"?: string, "reason": string }` | A document is unusable (for example a negative version). |
-| `invalidEntry` | `{ "entryUri": string, "reason": string }` | A project entry/target has an unsupported URI, language, or kind. LPP 1.1+. |
+| `invalidEntry` | `{ "entryUri": string, "reason": string }` | A project entry/target has an unsupported URI, language, or kind, or an invalid `version` (for example a negative integer). LPP 1.1+. |
 | `projectLoadFailed` | `{ "entryUri": string, "reason": string, "uri"?: string }` | A filesystem-backed project entry/target or required source file could not be loaded. LPP 1.1+. |
 | `invalidPosition` | `{ "uri": string, "position": Position }` | A position outside the document. |
 | `invalidArtifact` | `{ "reason": string }` | An artifact in a supported format whose content is malformed. |
@@ -123,8 +123,9 @@ clients MUST NOT parse `message`.
   later and require `lookup: true` in the result capabilities. Clients that
   need canonical id resolution MUST request `"1.6"` or later and require
   `resolveIds: true`.
-* A provider MUST support at least one of the versions it lists in
-  `supportedProtocolVersions`.
+* A provider MUST list in `supportedProtocolVersions` exactly the versions
+  it supports: every listed version MUST be negotiable, and no supported
+  version may be omitted.
 
 ### 19.3 Rules for introducing changes
 
