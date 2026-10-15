@@ -60,9 +60,12 @@ impl<'a> SourceText<'a> {
             .get(line + 1)
             .copied()
             .unwrap_or(self.text.len());
-        if self.text.as_bytes().get(end.wrapping_sub(1)) == Some(&b'\n') {
+        // The terminator counts only when it sits inside this line's span —
+        // a phantom final line after a trailing newline has an empty span
+        // and must not strip the previous line's terminator.
+        if end > start && self.text.as_bytes()[end - 1] == b'\n' {
             end -= 1;
-            if self.text.as_bytes().get(end.wrapping_sub(1)) == Some(&b'\r') {
+            if end > start && self.text.as_bytes()[end - 1] == b'\r' {
                 end -= 1;
             }
         }
@@ -102,8 +105,10 @@ impl<'a> SourceText<'a> {
             Ok(i) => i,
             Err(i) => i - 1,
         };
-        let (start, _) = self.line_byte_range(line);
-        let units = self.text[start..byte]
+        // Positions count content only: a byte inside the line terminator
+        // ("\r\n" or "\n") maps to the end of the line.
+        let (start, end) = self.line_byte_range(line);
+        let units = self.text[start..byte.min(end)]
             .chars()
             .map(char::len_utf16)
             .sum::<usize>();

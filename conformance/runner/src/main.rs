@@ -36,9 +36,16 @@ fn main() {
 
     let mut paths: Vec<PathBuf> = match std::fs::read_dir(&fixtures_dir) {
         Ok(entries) => entries
-            .filter_map(Result::ok)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap_or_else(|error| {
+                usage_error(&format!(
+                    "cannot read fixtures dir '{}': {error}",
+                    fixtures_dir.display()
+                ))
+            })
+            .into_iter()
             .map(|entry| entry.path())
-            .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+            .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext == "json"))
             .collect(),
         Err(error) => {
             usage_error(&format!(
@@ -114,10 +121,10 @@ fn parse_args() -> Args {
     let mut iter = std::env::args().skip(1);
     while let Some(arg) = iter.next() {
         match arg.as_str() {
-            "--fixtures" => args.fixtures = iter.next(),
-            "--provider" => args.provider = iter.next(),
+            "--fixtures" => args.fixtures = Some(arg_value(&mut iter, "--fixtures")),
+            "--provider" => args.provider = Some(arg_value(&mut iter, "--provider")),
             "--validate-only" => args.validate_only = true,
-            "--scope" => args.scope = iter.next(),
+            "--scope" => args.scope = Some(arg_value(&mut iter, "--scope")),
             other => usage_error(&format!("unknown argument '{other}'")),
         }
     }
@@ -130,6 +137,14 @@ fn parse_args() -> Args {
         }
     }
     args
+}
+
+fn arg_value(iter: &mut impl Iterator<Item = String>, flag: &str) -> String {
+    match iter.next() {
+        // A missing value must not silently swallow the next flag.
+        Some(value) if !value.starts_with("--") => value,
+        _ => usage_error(&format!("{flag} requires a value")),
+    }
 }
 
 fn usage_error(message: &str) -> ! {

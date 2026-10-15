@@ -34,8 +34,7 @@ All LPP-defined errors use JSON-RPC error code `-32000` and carry a structured
         "kind": "refusal",
         "details": {
           "refusalCode": "rename.noSymbolAtPosition",
-          "uri": "file:///project/puzzle.xdl",
-          "range": { "start": { "line": 1, "character": 2 }, "end": { "line": 1, "character": 3 } }
+          "uri": "file:///project/puzzle.xdl"
         }
       }
     }
@@ -49,14 +48,23 @@ All LPP-defined errors use JSON-RPC error code `-32000` and carry a structured
 | --- | --- | --- |
 | `protocolVersionMismatch` | `{ "supportedProtocolVersions": [string] }` | `lpp/initialize` with an unsupported protocol version. |
 | `invalidRequest` | `{ "reason": string }` | Session violations: `notInitialized`, `alreadyInitialized`, `notificationNotSupported`. |
-| `invalidLanguage` | `{ "languageId": string }` | A document's `languageId` is not served by the provider. |
+| `invalidLanguage` | `{ "languageId": string }` | A request's `languageId` — a document field or a top-level parameter — is not served by the provider. |
 | `invalidDocument` | `{ "uri"?: string, "reason": string }` | A document is unusable (for example a negative version). |
-| `invalidEntry` | `{ "entryUri": string, "reason": string }` | A project entry/target has an unsupported URI, language, or kind. LPP 1.1+. |
+| `invalidEntry` | `{ "entryUri": string, "reason": string }` | A project entry/target has an unsupported URI, language, or kind, or an invalid `version` (for example a negative integer). LPP 1.1+. |
 | `projectLoadFailed` | `{ "entryUri": string, "reason": string, "uri"?: string }` | A filesystem-backed project entry/target or required source file could not be loaded. LPP 1.1+. |
 | `invalidPosition` | `{ "uri": string, "position": Position }` | A position outside the document. |
 | `invalidArtifact` | `{ "reason": string }` | An artifact in a supported format whose content is malformed. |
 | `capabilityUnavailable` | `{ "capability": string, "method": string }` | A method was invoked whose capability was not negotiated. |
-| `refusal` | `{ "refusalCode": string, "uri"?: string, "range"?: Range }` | A deliberate decline; `refusalCode` identifies the reason. |
+| `refusal` | `{ "refusalCode": string }` plus the keys below | A deliberate decline; `refusalCode` identifies the reason. |
+
+A refusal `details` object carries `refusalCode` plus the request values the
+refusal declines, echoed under spec-owned keys exactly as each refusal's
+defining section requires. The spec-owned refusal detail keys are `uri` (the
+document URI the refusal concerns), `format` (a declined artifact format),
+`newName` (a declined rename `newName`), and `within` (a declined lookup
+`within` selector). A refusal `details` object MUST NOT carry keys outside
+`refusalCode` and the keys its defining section requires; provider-specific
+context belongs in `message`.
 
 `data.lpp` MUST NOT be attached to the standard JSON-RPC errors
 ([Section 4.1](#41-standard-json-rpc-errors)).
@@ -99,6 +107,11 @@ clients MUST NOT parse `message`.
   a version-gated field only in a session that negotiated the version defining
   it. A client MUST NOT depend on any other field the provider did not
   advertise via capabilities.
+* Ignoring unknown fields applies to fields the spec does not define at all.
+  A field that the spec defines but that the receiving method's `params`
+  schema does not include — for example `entry` on `lpp/symbols`, or
+  `documents` and `entry` together — is a schema violation and produces
+  `-32602`, not a field to ignore.
 
 ### 19.2 Negotiation
 
@@ -115,8 +128,9 @@ clients MUST NOT parse `message`.
   later and require `lookup: true` in the result capabilities. Clients that
   need canonical id resolution MUST request `"1.6"` or later and require
   `resolveIds: true`.
-* A provider MUST support at least one of the versions it lists in
-  `supportedProtocolVersions`.
+* A provider MUST list in `supportedProtocolVersions` exactly the versions
+  it supports: every listed version MUST be negotiable, and no supported
+  version may be omitted.
 
 ### 19.3 Rules for introducing changes
 

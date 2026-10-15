@@ -157,6 +157,7 @@ from these fields.
   `invalidLanguage`.
 * Invalid `params` (missing required fields, wrong types, `limit` outside its
   bound, a `within.kind` outside the closed set): JSON-RPC `-32602`.
-* A `within` selector naming no known scope: refusal; the reference mock
+* A `within` selector naming no known scope: refusal; the refusal `details`
+  MUST carry `within` echoing the rejected selector. The reference mock
   provider uses `lookup.unknownWithin` (see
   [Appendix B](#appendix-b-reference-refusal-codes-non-normative)).

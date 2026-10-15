@@ -172,7 +172,9 @@ impl Loader<'_> {
         })?;
 
         // The project is the `.xdl` files in the selected entry's directory.
-        let mut paths: Vec<PathBuf> = std::fs::read_dir(&root)
+        // A failed directory entry fails the load rather than silently
+        // dropping a required source (spec section 8.1).
+        let entries: Vec<_> = std::fs::read_dir(&root)
             .map_err(|error| {
                 self.fail(
                     "projectDirectoryUnreadable",
@@ -180,18 +182,50 @@ impl Loader<'_> {
                     format!("project directory could not be read: {error}"),
                 )
             })?
-            .filter_map(Result::ok)
-            .map(|entry| entry.path())
-            .filter(|path| path == &entry_path || path.extension().is_some_and(|ext| ext == "xdl"))
-            .collect();
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| {
+                self.fail(
+                    "projectDirectoryUnreadable",
+                    None,
+                    format!("project directory could not be read: {error}"),
+                )
+            })?;
+        let mut paths: Vec<PathBuf> = Vec::new();
+        for entry in entries {
+            let path = entry.path();
+            if path != entry_path {
+                if path.extension().is_none_or(|ext| ext != "xdl") {
+                    continue;
+                }
+                // A directory named `*.xdl` is not a source file; symlinks
+                // still resolve (or fail) through canonicalization below.
+                let is_dir = entry
+                    .file_type()
+                    .map_err(|error| {
+                        self.fail(
+                            "sourceFileUnreadable",
+                            path_to_file_uri(&path).as_deref(),
+                            format!("source file type could not be read: {error}"),
+                        )
+                    })?
+                    .is_dir();
+                if is_dir {
+                    continue;
+                }
+            }
+            paths.push(path);
+        }
         paths.sort();
 
         let mut documents = HashMap::new();
         for path in paths {
+            // The failing file's URI is knowable before canonicalization;
+            // `details.uri` should name it (spec section 8.1).
+            let unresolved_uri = path_to_file_uri(&path);
             let path = std::fs::canonicalize(&path).map_err(|error| {
                 self.fail(
                     "sourceFileUnreadable",
-                    None,
+                    unresolved_uri.as_deref(),
                     format!("source file could not be resolved: {error}"),
                 )
             })?;

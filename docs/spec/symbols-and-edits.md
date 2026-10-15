@@ -29,7 +29,8 @@ List the symbols declared in a set of documents.
 }
 ```
 
-Symbols MUST be listed in declaration order within each document.
+The `documents` array is ordered by the `documents` map key. Symbols MUST be
+listed in declaration order within each document.
 
 ## 13. lpp/definition
 
@@ -59,7 +60,8 @@ Resolve the definition of the symbol at a position.
   the position is already on a declaration, the declaration itself is
   returned.
 * When no symbol exists at `position`, the provider MUST refuse with
-  `refusalCode` = `definition.noSymbolAtPosition`.
+  `refusalCode` = `definition.noSymbolAtPosition`; the refusal `details`
+  MUST carry `uri` echoing the request's `document.uri`.
 * A `position` outside the document MUST produce an LPP error of kind
   `invalidPosition`.
 
@@ -98,10 +100,14 @@ Find all references to the symbol at a position within the document.
 }
 ```
 
-* Locations MUST be sorted by `range.start`. When `includeDeclaration` is
-  true, the declaration location is listed first.
+* When `includeDeclaration` is true, the declaration location is listed
+  first — a forward reference may sort before it. The remaining locations
+  MUST be sorted by `range.start`.
 * When no symbol exists at `position`, the provider MUST refuse with
-  `refusalCode` = `references.noSymbolAtPosition`.
+  `refusalCode` = `references.noSymbolAtPosition`; the refusal `details`
+  MUST carry `uri` echoing the request's `document.uri`.
+* A `position` outside the document MUST produce an LPP error of kind
+  `invalidPosition`.
 
 ## 15. lpp/rename
 
@@ -150,7 +156,8 @@ mode; the provider MUST NOT return serialized ASTs or IR in place of edits.
 ```
 
 * Each entry targets one document; `version` echoes the version of that
-  document as received by the provider.
+  document as received by the provider. Entries are ordered by the
+  `documents` map key.
 * Edits within one document MUST NOT overlap and MUST be sorted by
   `range.start`.
 * The provider MUST NOT return edits for documents outside the request's
@@ -167,11 +174,18 @@ mode; the provider MUST NOT return serialized ASTs or IR in place of edits.
 
 ### 15.3 Refusals
 
-* No symbol at `position`: `refusalCode` = `rename.noSymbolAtPosition`.
-* `newName` invalid for the language: `refusalCode` = `rename.invalidName`.
-* Rename would collide with an existing symbol: `refusalCode` = `rename.nameCollision`.
+* No symbol at `position`: `refusalCode` = `rename.noSymbolAtPosition`; the
+  refusal `details` MUST carry `uri` echoing the request's
+  `positionDocumentUri`.
+* `newName` invalid for the language: `refusalCode` = `rename.invalidName`;
+  the refusal `details` MUST carry `newName` echoing the rejected `newName`.
+* Rename would collide with an existing symbol: `refusalCode` =
+  `rename.nameCollision`; the refusal `details` MUST carry `newName` echoing
+  the rejected `newName`.
 * Rename needs an unreceived document: `refusalCode` =
-  `rename.requiresDocument` with `details` describing the requirement.
+  `rename.requiresDocument`.
+* A `position` outside the position document MUST produce an LPP error of
+  kind `invalidPosition`.
 
 ## 16. lpp/validateEdits
 
@@ -221,11 +235,13 @@ The provider MUST apply edits as follows:
 1. Validate every edit's range against the original document text (bounds,
    `start <= end`). Any violation produces `rangeOutOfBounds` with the index
    of the first offending edit.
-2. Sort edits by `range.start` (line, then character).
-3. After sorting, if any edit's `range.start` is before the previous edit's
-   `range.end` (comparing in original coordinates), the set is invalid:
-   `overlappingEdits` with the index of the later edit in the **original**
-   request order.
+2. Sort edits by `range.start` (line, then character). The sort is stable:
+   edits with equal `range.start` keep their request order, so two empty
+   edits at the same position do not overlap and apply in request order.
+3. After sorting, if any edit's `range.start` is before the previous sorted
+   edit's `range.end` (comparing in original coordinates), the set is
+   invalid: `overlappingEdits` with the **original** request-order index of
+   that later-in-document-order edit.
 4. Apply the sorted edits in order to produce the resulting text.
 5. Parse the resulting text. Any syntax or semantic error produces
    `syntaxError`.

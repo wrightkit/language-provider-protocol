@@ -17,6 +17,12 @@ pub(crate) fn parse_document(text: &str) -> ParseOutput {
         diagnostics: Vec::new(),
     };
     let puzzle = parse_top(&mut parser);
+    // Spec section 9.2: diagnostics are sorted by range.start. Diagnostics
+    // are pushed in analysis phases (body errors, then missing-section at the
+    // puzzle name, then semantic checks), so a stable sort is required.
+    parser
+        .diagnostics
+        .sort_by_key(|d| (d.range.start.line, d.range.start.character));
     ParseOutput {
         puzzle,
         diagnostics: parser.diagnostics,
@@ -54,6 +60,16 @@ impl Parser {
                 break;
             }
         }
+    }
+
+    /// Report an unexpected end of input just past the last token.
+    fn eof_error(&mut self, what: &str) {
+        let at = self
+            .tokens
+            .last()
+            .map(|t| Range::point(t.range.end))
+            .unwrap_or_else(|| Range::point(Position::ORIGIN));
+        self.error_at(at, format!("unexpected end of input: expected {what}"));
     }
 
     /// Report a syntax error at `range` without consuming input.
@@ -98,12 +114,19 @@ impl Parser {
     /// silently at end of input.
     fn expect_number(&mut self, what: &str) -> Option<i64> {
         let tok = self.peek().cloned()?;
-        if let TokenKind::Number(n) = tok.kind {
-            self.pos += 1;
-            Some(n)
-        } else {
-            self.error(&tok, format!("expected {what}"));
-            None
+        match tok.kind {
+            TokenKind::Number(n) => {
+                self.pos += 1;
+                Some(n)
+            }
+            TokenKind::BadNumber => {
+                self.error(&tok, "integer literal out of range");
+                None
+            }
+            _ => {
+                self.error(&tok, format!("expected {what}"));
+                None
+            }
         }
     }
 
@@ -124,8 +147,8 @@ impl Parser {
     }
 
     /// Consume the required `x` parameter name in an op declaration, or report
-    /// an error and recover. A failed ident skips an extra line, matching the
-    /// reference behavior for malformed op declarations.
+    /// an error and recover. `expect_ident` has already recovered to the next
+    /// line on a wrong token; at end of input there is nothing to recover.
     fn expect_x(&mut self, what: &str) -> bool {
         match self.expect_ident() {
             Some((name, _)) if name == "x" => true,
@@ -133,10 +156,7 @@ impl Parser {
                 self.error(&tok, format!("{what}, found '{name}'"));
                 false
             }
-            None => {
-                self.recover_line();
-                false
-            }
+            None => false,
         }
     }
 }
@@ -160,6 +180,10 @@ fn parse_top(parser: &mut Parser) -> Option<Puzzle> {
             return None;
         }
     }
+    if parser.peek().is_none() {
+        parser.eof_error("a puzzle name");
+        return None;
+    }
     let (name, name_tok) = parser.expect_ident()?;
     let mut puzzle = Puzzle {
         name,
@@ -170,6 +194,10 @@ fn parse_top(parser: &mut Parser) -> Option<Puzzle> {
         solution: Vec::new(),
         solution_range: Range::point(Position::ORIGIN),
     };
+    if parser.peek().is_none() {
+        parser.eof_error("'{'");
+        return None;
+    }
     if !parser.expect_punct(TokenKind::LBrace, "'{'") {
         return None;
     }
@@ -277,7 +305,21 @@ fn parse_top(parser: &mut Parser) -> Option<Puzzle> {
                         puzzle.target, value
                     ),
                 )),
-                _ => None,
+                Some(_) => None,
+                // All ops resolved here (unresolved references are already
+                // errors), so a failed simulation is an arithmetic failure:
+                // division by zero or integer overflow. It must be an error —
+                // compile cannot produce an artifact without a value.
+                None => {
+                    parser.diagnostics.push(diagnostic(
+                        puzzle.solution_range,
+                        "error",
+                        "x-demo/simulation-failed",
+                        "solution cannot be evaluated: division by zero or integer overflow"
+                            .to_string(),
+                    ));
+                    None
+                }
             }
         };
         if let Some((code, message)) = warning {
@@ -322,11 +364,17 @@ fn parse_op(parser: &mut Parser, puzzle: &mut Puzzle, name_tok: &Token) {
         return;
     };
     let name = name.clone();
-    parser.expect_punct(TokenKind::Colon, "':'");
+    // A failed expect_* has already reported and recovered to the next line;
+    // continuing would cascade the same diagnostic into the following op.
+    if !parser.expect_punct(TokenKind::Colon, "':'") {
+        return;
+    }
     if !parser.expect_x("op parameter must be 'x'") {
         return;
     }
-    parser.expect_punct(TokenKind::Arrow, "'=>'");
+    if !parser.expect_punct(TokenKind::Arrow, "'=>'") {
+        return;
+    }
     if !parser.expect_x("op body must apply to 'x'") {
         return;
     }
@@ -342,7 +390,6 @@ fn parse_op(parser: &mut Parser, puzzle: &mut Puzzle, name_tok: &Token) {
         return;
     };
     let Some(arg) = parser.expect_number("a numeric argument") else {
-        parser.recover_line();
         return;
     };
     puzzle.ops.push(Op {

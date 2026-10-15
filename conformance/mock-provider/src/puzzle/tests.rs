@@ -53,14 +53,116 @@ fn reports_duplicate_and_unresolved() {
 }
 
 #[test]
-fn malformed_op_declaration_skips_following_line() {
-    // Reference recovery behavior: a bad op parameter consumes the rest of
-    // that line AND the next line of the ops block, so `later` is never
-    // declared and the solution reference stays unresolved.
+fn malformed_op_declaration_does_not_consume_the_next_line() {
+    // Recovery is line-oriented: a bad op parameter reports one diagnostic
+    // and skips to the next newline; the following op still parses, so the
+    // solution reference to it resolves.
     const SRC: &str = "puzzle t {\n  target = 2\n  start = 0\n  ops {\n    bad: 5 => x + 1\n    later: x => x * 2\n  }\n  solution = [ later ]\n}";
     let out = parse_document(SRC);
     let codes: Vec<&str> = out.diagnostics.iter().map(|d| d.code.as_str()).collect();
+    assert_eq!(codes, ["x-demo/syntax"]);
+    let puzzle = out.puzzle.expect("partial parse keeps declarations");
+    assert!(puzzle.op("later").is_some());
+}
+
+#[test]
+fn missing_op_punctuation_reports_once_without_swallowing_the_next_op() {
+    // `b` is missing ':' — the error must not cascade into `c`'s line.
+    const SRC: &str = "puzzle p {\n  target = 1\n  start = 0\n  ops {\n    b x => x + 1\n    c: x => x + 2\n  }\n  solution = [ b, c ]\n}";
+    let out = parse_document(SRC);
+    let codes: Vec<&str> = out.diagnostics.iter().map(|d| d.code.as_str()).collect();
     assert_eq!(codes, ["x-demo/syntax", "x-demo/unresolved-op"]);
+    let puzzle = out.puzzle.expect("partial parse keeps declarations");
+    assert!(puzzle.op("c").is_some());
+    assert!(puzzle.op("b").is_none());
+}
+
+#[test]
+fn unknown_bytes_are_syntax_errors_not_identifiers() {
+    // '@', '$', and multi-byte characters are not part of the token grammar:
+    // they must surface as syntax errors, never parse as identifiers, and
+    // must not panic the diagnostic path.
+    for src in [
+        "puzzle @ {\n  target = 1\n  start = 0\n  ops {}\n  solution = []\n}",
+        "puzzle p {\n  target = 1\n  start = 0\n  ops {\n    $: x => x + 1\n  }\n  solution = [ $ ]\n}",
+        "puzzle α {\n  target = 1\n  start = 0\n  ops {}\n  solution = []\n}",
+    ] {
+        let out = parse_document(src);
+        assert!(
+            out.diagnostics.iter().any(|d| d.severity == "error"),
+            "expected a syntax error for {src:?}"
+        );
+    }
+}
+
+#[test]
+fn truncated_document_reports_an_error_instead_of_no_puzzle() {
+    // A document ending right after `puzzle` or `puzzle <name>` must produce
+    // an error diagnostic, not a silent `puzzle: None` — `lpp/compile`
+    // assumes no errors implies a puzzle.
+    for src in ["puzzle", "puzzle p", "puzzle p "] {
+        let out = parse_document(src);
+        assert!(out.puzzle.is_none(), "unexpectedly parsed {src:?}");
+        assert!(
+            out.diagnostics.iter().any(|d| d.severity == "error"),
+            "expected a diagnostic for {src:?}"
+        );
+    }
+}
+
+#[test]
+fn out_of_range_integer_literal_is_an_error() {
+    // An integer literal outside the i64 range must be diagnosed, not
+    // silently coerced to 0 and compiled into the artifact.
+    let out = parse_document(
+        "puzzle p {\n  target = 99999999999999999999\n  start = 0\n  ops {}\n  solution = []\n}",
+    );
+    assert!(
+        out.diagnostics.iter().any(|d| d.severity == "error"),
+        "expected an error for an out-of-range literal"
+    );
+
+    // i64::MIN is a valid literal.
+    let out = parse_document(
+        "puzzle p {\n  target = -9223372036854775808\n  start = 0\n  ops {}\n  solution = []\n}",
+    );
+    assert!(
+        !out.diagnostics.iter().any(|d| d.severity == "error"),
+        "i64::MIN is representable: {out:?}"
+    );
+}
+
+#[test]
+fn diagnostics_are_sorted_by_range_start() {
+    // A syntax error late in the body plus a missing-section diagnostic at
+    // the puzzle name must still come out ordered by range.start (§9.2).
+    const SRC: &str =
+        "puzzle p {\n  start = 1\n  ops {\n    d: x => x + 1\n  }\n  solution = [ d ]\n  ???\n}";
+    let out = parse_document(SRC);
+    let mut sorted = out.diagnostics.clone();
+    sorted.sort_by_key(|d| (d.range.start.line, d.range.start.character));
+    assert_eq!(
+        out.diagnostics.iter().map(|d| &d.code).collect::<Vec<_>>(),
+        sorted.iter().map(|d| &d.code).collect::<Vec<_>>(),
+        "diagnostics are not sorted by range.start"
+    );
+}
+
+#[test]
+fn arithmetic_failure_is_an_error_not_silence() {
+    // Division by zero and i64 overflow make simulate() return None; that
+    // must surface as an error diagnostic or compile's "no errors implies
+    // resolvable ops" invariant breaks.
+    for src in [
+        "puzzle p {\n  target = 1\n  start = 1\n  ops {\n    d: x => x / 0\n  }\n  solution = [ d ]\n}",
+        "puzzle p {\n  target = 1\n  start = 9223372036854775807\n  ops {\n    d: x => x + 1\n  }\n  solution = [ d ]\n}",
+    ] {
+        let out = parse_document(src);
+        assert!(
+            out.diagnostics.iter().any(|d| d.severity == "error"),
+            "expected an error diagnostic for {src:?}"
+        );
+    }
 }
 
 #[test]
@@ -87,6 +189,38 @@ fn utf16_positions_are_exact() {
 }
 
 #[test]
+fn trailing_newline_phantom_line_is_a_valid_position() {
+    // A document ending in '\n' has a phantom empty last line; a position
+    // there is valid (spec §6.4) and must not invert the line's byte range.
+    let src = SourceText::new("a\n");
+    assert_eq!(src.line_text(0), "a");
+    assert_eq!(src.line_text(1), "");
+    assert_eq!(src.byte_of(pos(1, 0)), Some(2));
+
+    let src = SourceText::new("a\r\n");
+    assert_eq!(src.line_text(1), "");
+    assert_eq!(src.byte_of(pos(1, 0)), Some(3));
+
+    // An empty line between two newlines stays empty, not inverted.
+    let src = SourceText::new("a\n\nb");
+    assert_eq!(src.line_text(1), "");
+    assert_eq!(src.byte_of(pos(1, 0)), Some(2));
+}
+
+#[test]
+fn crlf_terminator_does_not_count_toward_character() {
+    // "\r\n" is the line terminator, not content: positions at its bytes map
+    // to end-of-line, never past the visible line length.
+    let src = SourceText::new("aaaaaaaaaa\r\nb");
+    assert_eq!(src.position_of(10), pos(0, 10)); // '\r' byte -> end of line 0
+    assert_eq!(src.position_of(11), pos(0, 10)); // '\n' byte -> end of line 0
+    assert_eq!(src.position_of(12), pos(1, 0));
+    // A lone '\r' mid-line is content.
+    let src = SourceText::new("a\rb\nc");
+    assert_eq!(src.position_of(3), pos(0, 3));
+}
+
+#[test]
 fn compile_reconstruct_round_trip() {
     let out = parse_document(CLEAN);
     let puzzle = out.puzzle.expect("parsed");
@@ -94,6 +228,25 @@ fn compile_reconstruct_round_trip() {
     let content = serde_json::to_string(&artifact).expect("serializes");
     let source = reconstruct_source(&content).expect("reconstructs");
     assert_eq!(source, CLEAN);
+}
+
+#[test]
+fn reconstruct_rejects_names_the_parser_would_not_accept() {
+    // Names are written into generated source verbatim; anything outside
+    // the identifier grammar would emit text our own parser rejects (or
+    // inject extra syntax).
+    for bad in ["has space", "a\nb", "", "x-y", "9lives"] {
+        for content in [
+            serde_json::json!({"name": bad, "target": 1, "start": 0, "ops": [], "solution": [], "value": 0}),
+            serde_json::json!({"name": "p", "target": 1, "start": 0, "ops": [{"name": bad, "op": "+", "arg": 1}], "solution": [], "value": 1}),
+            serde_json::json!({"name": "p", "target": 1, "start": 0, "ops": [], "solution": [bad], "value": 0}),
+        ] {
+            assert!(
+                reconstruct_source(&content.to_string()).is_none(),
+                "name {bad:?} must be rejected"
+            );
+        }
+    }
 }
 
 #[test]
@@ -289,6 +442,35 @@ fn occurrences_list_declaration_first_then_references() {
     assert_eq!(puzzle.occurrences("plus1", true), vec![rng(5, 4, 5, 9)]);
     // Unknown names have no occurrences.
     assert!(puzzle.occurrences("triple", true).is_empty());
+}
+
+#[test]
+fn rename_ranges_are_sorted_when_solution_precedes_ops() {
+    // `solution` may precede `ops` in a document; rename edits must still be
+    // sorted by range.start (§15.2) even though occurrences lists the
+    // declaration first.
+    const SRC: &str = "puzzle p {\n  target = 2\n  start = 1\n  solution = [ d ]\n  ops {\n    d: x => x + 1\n  }\n}";
+    let (src, puzzle) = puzzle_of(SRC);
+    let symbol = symbol_at(&src, &puzzle, 5, 4).expect("op d");
+    let ranges = puzzle.rename_ranges(&symbol, true);
+    let mut sorted = ranges.clone();
+    sorted.sort_by_key(|r| (r.start.line, r.start.character));
+    assert_eq!(ranges, sorted, "rename ranges are not sorted");
+}
+
+#[test]
+fn puzzle_symbol_occurrences_do_not_include_a_same_named_op() {
+    // Position on the puzzle name `a` while an op `a` exists: the puzzle
+    // symbol's occurrences are its own declaration only — never the op's.
+    const SRC: &str = "puzzle a {\n  target = 2\n  start = 1\n  ops {\n    a: x => x + 1\n  }\n  solution = [ a ]\n}";
+    let (src, puzzle) = puzzle_of(SRC);
+    let symbol = symbol_at(&src, &puzzle, 0, 7).expect("puzzle name");
+    assert!(matches!(symbol, Symbol::Puzzle { .. }));
+    assert_eq!(
+        puzzle.symbol_occurrences(&symbol, true),
+        vec![rng(0, 7, 0, 8)]
+    );
+    assert!(puzzle.symbol_occurrences(&symbol, false).is_empty());
 }
 
 #[test]

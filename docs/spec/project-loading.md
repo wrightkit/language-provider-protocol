@@ -52,7 +52,7 @@ Initialization and capability negotiation. The client MUST send
 | --- | --- | --- |
 | `protocolVersion` | string | The protocol version the provider will speak: `"1.0"`, `"1.1"`, `"1.2"`, `"1.3"`, `"1.4"`, `"1.5"`, or `"1.6"`. |
 | `serverInfo` | object | `{ "name": string, "version": string }` identifying the provider. |
-| `languages` | array | One entry per source language the provider serves. |
+| `languages` | array | REQUIRED non-empty array with one entry per source language the provider serves; each entry is exactly `{ "id": <non-empty string>, "extensions": [<lowercase extension>] }`. |
 | `capabilities` | object | The capabilities the provider advertises, as one boolean field per capability id. The object itself is required; its keys are drawn from the capability ids declared for the negotiated version (Section 7.3): LPP 1.0 declares the eight listed below, LPP 1.1 adds `projectLoading`, LPP 1.3 adds `sourceIdentity`, and LPP 1.5 adds `lookup`, and LPP 1.6 adds `resolveIds`. A provider MAY advertise any subset — an absent id means not offered, equivalent to `false`. |
 
 Each language entry: `{ "id": string, "extensions": [string] }`. `extensions`
@@ -139,7 +139,11 @@ Document-scoped methods share this parameter shape:
 In LPP 1.1 and later, `lpp/check` and `lpp/compile` accept either `documents` or
 `entry`, but not both. An `entry` request is available only when the provider
 accepted protocol version `1.1` or later and advertised
-`projectLoading: true`.
+`projectLoading: true`. An `entry` sent in a session that negotiated a version
+earlier than 1.1 is a version-gated field and MUST be rejected with JSON-RPC
+`-32602`; in a session at 1.1 or later where `projectLoading` was not
+advertised, it MUST be rejected with an LPP error of kind
+`capabilityUnavailable`.
 The optional `projectRoot` field remains legal and is informational; the
 provider accepts it but determines the effective project root and source
 closure from the entry and the source language's rules.
@@ -184,7 +188,8 @@ also include the affected `uri`.
 
 ### 8.2 Directory project requests (LPP 1.2 and later)
 
-LPP 1.2 and later extend the `entry` object with `kind: "directory"`:
+The `kind` field itself is defined since LPP 1.1 (`"file"` or omitted); LPP
+1.2 and later add `"directory"` to the set of values `kind` accepts:
 
 ```json
 {

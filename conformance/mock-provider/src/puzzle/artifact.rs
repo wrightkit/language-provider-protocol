@@ -48,9 +48,24 @@ struct SheetOp {
     arg: i64,
 }
 
+/// The `x-demo-lang` identifier grammar: `[A-Za-z_][A-Za-z0-9_]*`.
+fn is_ident(name: &str) -> bool {
+    let mut chars = name.chars();
+    matches!(chars.next(), Some(c) if c.is_ascii_alphabetic() || c == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 /// Canonical source text regenerated from a puzzle evaluation sheet.
+/// Names are emitted verbatim, so every one must be a valid identifier or
+/// the output would not parse (or would carry injected syntax).
 pub(crate) fn reconstruct_source(content: &str) -> Option<String> {
     let sheet: Sheet = serde_json::from_str(content).ok()?;
+    if !is_ident(&sheet.name)
+        || sheet.ops.iter().any(|op| !is_ident(&op.name))
+        || sheet.solution.iter().any(|name| !is_ident(name))
+    {
+        return None;
+    }
     let mut out = format!(
         "puzzle {} {{\n  target = {}\n  start = {}\n  ops {{\n",
         sheet.name, sheet.target, sheet.start

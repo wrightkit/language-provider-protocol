@@ -68,7 +68,10 @@ coordinates of the original document text as received by the provider.
 }
 ```
 
-An object mapping document URI to Document. For document-supplied requests, the
+An object mapping document URI to Document. The map key is the document's
+address for request fields such as `positionDocumentUri`, and the entry's
+`uri` field is the document's identity echoed in results; the client MUST set
+both to the document's URI. For document-supplied requests, the
 client MUST include every document the request may need; the provider MUST NOT
 assume any document exists outside the set and MUST NOT return edits for
 documents it did not receive. LPP 1.1 entry-based `check` and `compile`

@@ -34,15 +34,6 @@ pub(crate) enum Symbol {
     Op { name: String },
 }
 
-impl Symbol {
-    /// The name the symbol binds to.
-    pub(crate) fn name(&self) -> &str {
-        match self {
-            Symbol::Puzzle { name } | Symbol::Op { name } => name,
-        }
-    }
-}
-
 impl Puzzle {
     /// The symbol under `byte`: the puzzle name, an op declaration, or a
     /// solution reference, in that order.
@@ -103,6 +94,25 @@ impl Puzzle {
         ranges
     }
 
+    /// Ranges where `symbol` occurs, resolved by symbol kind: a puzzle name
+    /// is only ever its own declaration (puzzle names are never referenced
+    /// elsewhere); an op is its declaration then references in document
+    /// order. Looking an op up by name is wrong for a puzzle symbol that
+    /// happens to share the op's name.
+    pub(crate) fn symbol_occurrences(
+        &self,
+        symbol: &Symbol,
+        include_declaration: bool,
+    ) -> Vec<Range> {
+        match symbol {
+            Symbol::Puzzle { .. } => include_declaration
+                .then_some(self.name_range)
+                .into_iter()
+                .collect(),
+            Symbol::Op { name } => self.occurrences(name, include_declaration),
+        }
+    }
+
     /// Whether renaming `symbol` to `new_name` would collide with an
     /// existing op. Only op renames can collide.
     pub(crate) fn rename_collides(&self, symbol: &Symbol, new_name: &str) -> bool {
@@ -124,7 +134,14 @@ impl Puzzle {
                     Vec::new()
                 }
             }
-            Symbol::Op { name } => self.occurrences(name, true),
+            Symbol::Op { name } => {
+                // §15.2 requires edits sorted by range.start; occurrences
+                // lists the declaration first (a §14.2 carve-out for
+                // references), which misorders when `solution` precedes `ops`.
+                let mut ranges = self.occurrences(name, true);
+                ranges.sort_by_key(|r| (r.start.line, r.start.character));
+                ranges
+            }
         }
     }
 }

@@ -209,7 +209,7 @@ impl Server {
             &params.document.uri,
         )?;
         let locations: Vec<Value> = puzzle
-            .occurrences(symbol.name(), params.include_declaration)
+            .symbol_occurrences(&symbol, params.include_declaration)
             .into_iter()
             .map(|range| location_json(&params.document.uri, range))
             .collect();
@@ -255,21 +255,33 @@ impl Server {
 
         let edits: Vec<Value> = sorted_entries(&params.documents)
             .into_iter()
-            .filter_map(|(key, doc)| {
-                let puzzle = parse_document(&doc.text).puzzle?;
+            .map(|(key, doc)| {
+                // §15.2: every reference in every received document must be
+                // covered, so a document that did not parse cleanly makes the
+                // rename unsafe — refuse instead of emitting partial edits.
+                let Some(puzzle) = parse_document(&doc.text).into_puzzle() else {
+                    return Err(HandlerError::lpp(
+                        "invalidDocument",
+                        json!({ "uri": doc.uri, "reason": "documentHasErrors" }),
+                        "document has errors and cannot be renamed safely",
+                    ));
+                };
                 let edits: Vec<Value> = puzzle
                     .rename_ranges(&symbol, key == &params.position_document_uri)
                     .into_iter()
                     .map(|range| json!({ "range": range, "newText": params.new_name }))
                     .collect();
-                (!edits.is_empty()).then(|| {
+                Ok((!edits.is_empty()).then(|| {
                     json!({
                         "documentUri": doc.uri,
                         "version": doc.version,
                         "textEdits": edits,
                     })
-                })
+                }))
             })
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
             .collect();
         if edits.is_empty() {
             return Err(HandlerError::refusal(
