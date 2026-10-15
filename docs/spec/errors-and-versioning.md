@@ -48,7 +48,7 @@ All LPP-defined errors use JSON-RPC error code `-32000` and carry a structured
 | --- | --- | --- |
 | `protocolVersionMismatch` | `{ "supportedProtocolVersions": [string] }` | `lpp/initialize` with an unsupported protocol version. |
 | `invalidRequest` | `{ "reason": string }` | Session violations: `notInitialized`, `alreadyInitialized`, `notificationNotSupported`. |
-| `invalidLanguage` | `{ "languageId": string }` | A document's `languageId` is not served by the provider. |
+| `invalidLanguage` | `{ "languageId": string }` | A request's `languageId` — a document field or a top-level parameter — is not served by the provider. |
 | `invalidDocument` | `{ "uri"?: string, "reason": string }` | A document is unusable (for example a negative version). |
 | `invalidEntry` | `{ "entryUri": string, "reason": string }` | A project entry/target has an unsupported URI, language, or kind, or an invalid `version` (for example a negative integer). LPP 1.1+. |
 | `projectLoadFailed` | `{ "entryUri": string, "reason": string, "uri"?: string }` | A filesystem-backed project entry/target or required source file could not be loaded. LPP 1.1+. |
@@ -107,6 +107,11 @@ clients MUST NOT parse `message`.
   a version-gated field only in a session that negotiated the version defining
   it. A client MUST NOT depend on any other field the provider did not
   advertise via capabilities.
+* Ignoring unknown fields applies to fields the spec does not define at all.
+  A field that the spec defines but that the receiving method's `params`
+  schema does not include — for example `entry` on `lpp/symbols`, or
+  `documents` and `entry` together — is a schema violation and produces
+  `-32602`, not a field to ignore.
 
 ### 19.2 Negotiation
 

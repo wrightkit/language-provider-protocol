@@ -52,7 +52,7 @@ Initialization and capability negotiation. The client MUST send
 | --- | --- | --- |
 | `protocolVersion` | string | The protocol version the provider will speak: `"1.0"`, `"1.1"`, `"1.2"`, `"1.3"`, `"1.4"`, `"1.5"`, or `"1.6"`. |
 | `serverInfo` | object | `{ "name": string, "version": string }` identifying the provider. |
-| `languages` | array | One entry per source language the provider serves. |
+| `languages` | array | REQUIRED non-empty array with one entry per source language the provider serves; each entry is exactly `{ "id": <non-empty string>, "extensions": [<lowercase extension>] }`. |
 | `capabilities` | object | The capabilities the provider advertises, as one boolean field per capability id. The object itself is required; its keys are drawn from the capability ids declared for the negotiated version (Section 7.3): LPP 1.0 declares the eight listed below, LPP 1.1 adds `projectLoading`, LPP 1.3 adds `sourceIdentity`, and LPP 1.5 adds `lookup`, and LPP 1.6 adds `resolveIds`. A provider MAY advertise any subset — an absent id means not offered, equivalent to `false`. |
 
 Each language entry: `{ "id": string, "extensions": [string] }`. `extensions`

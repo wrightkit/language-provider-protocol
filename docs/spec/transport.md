@@ -19,7 +19,9 @@ raw newline characters; newlines inside JSON strings are escaped as `\n`.
 
 * Writers MUST emit LF line terminators and MUST flush after each message.
 * Readers MUST accept both LF and CRLF line terminators.
-* Readers MUST ignore empty lines.
+* Readers MUST ignore empty lines. A line containing only whitespace is not
+  empty: after stripping the terminator it still carries content and fails
+  with a `-32700` parse error.
 
 The client MAY terminate the provider at any time (for example by closing its
 standard input or by sending a signal). When the provider's standard input
@@ -54,6 +56,13 @@ rules:
 * **Processing order**: the provider MUST process messages in the order
   received and MUST emit responses in that same order.
 * **Version field**: every request and response MUST carry `"jsonrpc": "2.0"`.
+* **Validation order**: the first matching failure produces the response —
+  `-32700` (line is not JSON), `-32600` (non-object message, batch, wrong
+  `jsonrpc`, or missing `method`), the `notificationNotSupported` violation
+  (missing/null `id`) or `-32600` (non-integer/string `id`), `-32602`
+  (`params` absent or not an object), then `invalidRequest`/`notInitialized`,
+  `-32601` (unknown method), `capabilityUnavailable`, and finally the
+  method's own params schema check (`-32602`).
 
 ### 4.1 Standard JSON-RPC errors
 
@@ -93,6 +102,7 @@ lpp/initialize  -- success --> ready
   `alreadyInitialized`.
 * After the `lpp/initialize` response, the session is ready. There is no
   separate "initialized" notification in LPP v1.
-* Requests arriving after `lpp/shutdown` was sent MAY be ignored by the
-  provider (the client MUST NOT send any).
+* The provider exits promptly after sending the `lpp/shutdown` response; a
+  request that arrives later receives no response (the client MUST NOT send
+  any).
 

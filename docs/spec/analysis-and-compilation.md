@@ -35,9 +35,8 @@ analyze every document in the set and MUST report all diagnostics found.
 }
 ```
 
-* `documents`: one entry per input document, in the same order the client
-  would observe from the request object (providers SHOULD use a
-  deterministic order; the mock provider orders entries by URI).
+* `documents`: one entry per input document, ordered by the `documents` map
+  key (the document's URI; see Section 6.5).
 * Each entry echoes the `uri` and `version` the diagnostics were computed for,
   plus the `diagnostics` array (empty when the document is clean).
 * Diagnostics within an entry MUST be sorted by `range.start` (line, then
@@ -87,8 +86,9 @@ document-supplied request that contains more than one document.
 ```
 
 * `diagnostics`: same shape as the `lpp/check` result.
-* `sourceIdentity`: defined only in LPP 1.3 and later. In an LPP 1.3 or later session, the
-  provider MUST advertise the `sourceIdentity` capability. If it advertises
+* `sourceIdentity`: defined only in LPP 1.3 and later; like every capability
+  it is independently optional — a provider MAY advertise
+  `sourceIdentity: true` in an LPP 1.3 or later session. If it advertises
   `sourceIdentity: true`, an entry-based compile result MUST include a
   lower-case SHA-256 hex digest of the provider-selected primary source text.
   The provider owns effective entry selection. If the capability is false, the
