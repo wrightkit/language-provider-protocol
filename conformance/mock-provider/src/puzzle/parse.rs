@@ -295,7 +295,21 @@ fn parse_top(parser: &mut Parser) -> Option<Puzzle> {
                         puzzle.target, value
                     ),
                 )),
-                _ => None,
+                Some(_) => None,
+                // All ops resolved here (unresolved references are already
+                // errors), so a failed simulation is an arithmetic failure:
+                // division by zero or integer overflow. It must be an error —
+                // compile cannot produce an artifact without a value.
+                None => {
+                    parser.diagnostics.push(diagnostic(
+                        puzzle.solution_range,
+                        "error",
+                        "x-demo/simulation-failed",
+                        "solution cannot be evaluated: division by zero or integer overflow"
+                            .to_string(),
+                    ));
+                    None
+                }
             }
         };
         if let Some((code, message)) = warning {

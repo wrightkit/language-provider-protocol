@@ -97,6 +97,23 @@ fn truncated_document_reports_an_error_instead_of_no_puzzle() {
 }
 
 #[test]
+fn arithmetic_failure_is_an_error_not_silence() {
+    // Division by zero and i64 overflow make simulate() return None; that
+    // must surface as an error diagnostic or compile's "no errors implies
+    // resolvable ops" invariant breaks.
+    for src in [
+        "puzzle p {\n  target = 1\n  start = 1\n  ops {\n    d: x => x / 0\n  }\n  solution = [ d ]\n}",
+        "puzzle p {\n  target = 1\n  start = 9223372036854775807\n  ops {\n    d: x => x + 1\n  }\n  solution = [ d ]\n}",
+    ] {
+        let out = parse_document(src);
+        assert!(
+            out.diagnostics.iter().any(|d| d.severity == "error"),
+            "expected an error diagnostic for {src:?}"
+        );
+    }
+}
+
+#[test]
 fn warns_when_target_not_reached() {
     let out = parse_document(WARM);
     assert_eq!(out.diagnostics.len(), 1);
