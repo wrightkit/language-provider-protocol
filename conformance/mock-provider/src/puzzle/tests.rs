@@ -53,14 +53,28 @@ fn reports_duplicate_and_unresolved() {
 }
 
 #[test]
-fn malformed_op_declaration_skips_following_line() {
-    // Reference recovery behavior: a bad op parameter consumes the rest of
-    // that line AND the next line of the ops block, so `later` is never
-    // declared and the solution reference stays unresolved.
+fn malformed_op_declaration_does_not_consume_the_next_line() {
+    // Recovery is line-oriented: a bad op parameter reports one diagnostic
+    // and skips to the next newline; the following op still parses, so the
+    // solution reference to it resolves.
     const SRC: &str = "puzzle t {\n  target = 2\n  start = 0\n  ops {\n    bad: 5 => x + 1\n    later: x => x * 2\n  }\n  solution = [ later ]\n}";
     let out = parse_document(SRC);
     let codes: Vec<&str> = out.diagnostics.iter().map(|d| d.code.as_str()).collect();
+    assert_eq!(codes, ["x-demo/syntax"]);
+    let puzzle = out.puzzle.expect("partial parse keeps declarations");
+    assert!(puzzle.op("later").is_some());
+}
+
+#[test]
+fn missing_op_punctuation_reports_once_without_swallowing_the_next_op() {
+    // `b` is missing ':' — the error must not cascade into `c`'s line.
+    const SRC: &str = "puzzle p {\n  target = 1\n  start = 0\n  ops {\n    b x => x + 1\n    c: x => x + 2\n  }\n  solution = [ b, c ]\n}";
+    let out = parse_document(SRC);
+    let codes: Vec<&str> = out.diagnostics.iter().map(|d| d.code.as_str()).collect();
     assert_eq!(codes, ["x-demo/syntax", "x-demo/unresolved-op"]);
+    let puzzle = out.puzzle.expect("partial parse keeps declarations");
+    assert!(puzzle.op("c").is_some());
+    assert!(puzzle.op("b").is_none());
 }
 
 #[test]

@@ -140,8 +140,8 @@ impl Parser {
     }
 
     /// Consume the required `x` parameter name in an op declaration, or report
-    /// an error and recover. A failed ident skips an extra line, matching the
-    /// reference behavior for malformed op declarations.
+    /// an error and recover. `expect_ident` has already recovered to the next
+    /// line on a wrong token; at end of input there is nothing to recover.
     fn expect_x(&mut self, what: &str) -> bool {
         match self.expect_ident() {
             Some((name, _)) if name == "x" => true,
@@ -149,10 +149,7 @@ impl Parser {
                 self.error(&tok, format!("{what}, found '{name}'"));
                 false
             }
-            None => {
-                self.recover_line();
-                false
-            }
+            None => false,
         }
     }
 }
@@ -360,11 +357,17 @@ fn parse_op(parser: &mut Parser, puzzle: &mut Puzzle, name_tok: &Token) {
         return;
     };
     let name = name.clone();
-    parser.expect_punct(TokenKind::Colon, "':'");
+    // A failed expect_* has already reported and recovered to the next line;
+    // continuing would cascade the same diagnostic into the following op.
+    if !parser.expect_punct(TokenKind::Colon, "':'") {
+        return;
+    }
     if !parser.expect_x("op parameter must be 'x'") {
         return;
     }
-    parser.expect_punct(TokenKind::Arrow, "'=>'");
+    if !parser.expect_punct(TokenKind::Arrow, "'=>'") {
+        return;
+    }
     if !parser.expect_x("op body must apply to 'x'") {
         return;
     }
@@ -380,7 +383,6 @@ fn parse_op(parser: &mut Parser, puzzle: &mut Puzzle, name_tok: &Token) {
         return;
     };
     let Some(arg) = parser.expect_number("a numeric argument") else {
-        parser.recover_line();
         return;
     };
     puzzle.ops.push(Op {
