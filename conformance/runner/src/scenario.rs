@@ -223,7 +223,7 @@ fn uses_project_uri(scenario: &Scenario) -> bool {
     scenario.steps.iter().any(|step| {
         let request_uses_uri = match &step.request {
             StepRequest::Request(request) => contains_project_uri(request),
-            StepRequest::RawLine(_) => false,
+            StepRequest::RawLine(raw) => raw.contains("${PROJECT_URI}"),
         };
         request_uses_uri || contains_project_uri(&step.expect_response)
     })

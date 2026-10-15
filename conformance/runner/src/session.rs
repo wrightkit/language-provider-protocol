@@ -34,12 +34,14 @@ pub(crate) fn run_scenario(
     let stdout = child.stdout.take().ok_or("provider stdout not available")?;
 
     let (response_tx, response_rx) = mpsc::channel();
+    let (done_tx, done_rx) = mpsc::channel();
     let reader_thread = thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
             if !line.trim().is_empty() && response_tx.send(line).is_err() {
                 break;
             }
         }
+        let _ = done_tx.send(());
     });
 
     for (i, step) in scenario.steps.iter().enumerate() {
@@ -109,6 +111,18 @@ pub(crate) fn run_scenario(
             "expected exit code {expected_exit}, got {actual_exit}"
         ));
     }
+    // Output the provider emitted past the last step must surface. Give the
+    // reader a short grace period for already-buffered lines; a descendant
+    // can keep the pipe open, so the wait stays bounded.
+    const DRAIN_GRACE: Duration = Duration::from_millis(500);
+    let _ = done_rx.recv_timeout(DRAIN_GRACE);
+    let extra: Vec<String> = response_rx.try_iter().collect();
+    if !extra.is_empty() {
+        return Err(format!(
+            "provider emitted {} unexpected line(s) after the last step: {extra:?}",
+            extra.len()
+        ));
+    }
     // Do not join the reader: a provider descendant inheriting stdout keeps
     // the pipe open past the child's exit and a join could block forever.
     // The thread ends on EOF or a failed send, and dies with the process.
@@ -122,7 +136,12 @@ fn step_request_line(step: &Step, project: Option<&ProjectFixture>) -> String {
             serde_json::to_string(&substitute_project_uri(request, project))
                 .expect("request serializes")
         }
-        StepRequest::RawLine(raw) => raw.clone(),
+        // `${PROJECT_URI}` inside a raw line substitutes literally, matching
+        // the request-object path.
+        StepRequest::RawLine(raw) => raw.replace(
+            "${PROJECT_URI}",
+            project.map_or("", |project| project.uri.as_str()),
+        ),
     }
 }
 
@@ -257,5 +276,53 @@ mod tests {
             elapsed < Duration::from_secs(4),
             "blocked {elapsed:?} on a descendant holding stdout"
         );
+    }
+
+    #[test]
+    fn output_past_the_last_step_fails() {
+        // A provider that emits an extra line after answering must not pass.
+        let dir = scratch("extra");
+        let script = dir.join("provider.sh");
+        fs::write(
+            &script,
+            "#!/bin/sh\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'\necho '{\"extra\":true}'\nexit 0\n",
+        )
+        .unwrap();
+        let scenario = scenario(
+            &script,
+            vec![],
+            vec![check_step(json!({"jsonrpc":"2.0","id":1,"result":{}}))],
+        );
+        let error = run_scenario(&scenario, "/bin/sh", 0).expect_err("extra output fails");
+        fs::remove_dir_all(&dir).ok();
+        assert!(error.contains("unexpected line"), "got: {error}");
+    }
+
+    #[test]
+    fn raw_line_substitutes_project_uri() {
+        // `${PROJECT_URI}` inside a rawLine must be replaced like it is in
+        // request objects; the provider only answers when no placeholder
+        // survives on the wire.
+        let dir = scratch("rawline");
+        let script = dir.join("provider.sh");
+        fs::write(
+            &script,
+            "#!/bin/sh\nread line\ncase \"$line\" in\n*'${PROJECT_URI}'*) echo '{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"placeholder survived\"}}' ;;\n*) echo '{\"jsonrpc\":\"2.0\",\"id\":null,\"result\":{}}' ;;\nesac\nexit 0\n",
+        )
+        .unwrap();
+        let mut scenario = scenario(
+            &script,
+            vec![],
+            vec![Step {
+                request: StepRequest::RawLine(
+                    r#"{"jsonrpc":"2.0","id":1,"method":"lpp/check","params":{"entry":{"uri":"${PROJECT_URI}","languageId":"x-demo-lang","version":1}}}"#.to_string(),
+                ),
+                expect_response: json!({"jsonrpc":"2.0","id":null,"result":{}}),
+            }],
+        );
+        scenario.project_files =
+            Some(std::collections::HashMap::from([("entry.xdl".to_string(), String::new())]));
+        run_scenario(&scenario, "/bin/sh", 0).expect("placeholder substituted");
+        fs::remove_dir_all(&dir).ok();
     }
 }
