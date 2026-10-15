@@ -114,12 +114,19 @@ impl Parser {
     /// silently at end of input.
     fn expect_number(&mut self, what: &str) -> Option<i64> {
         let tok = self.peek().cloned()?;
-        if let TokenKind::Number(n) = tok.kind {
-            self.pos += 1;
-            Some(n)
-        } else {
-            self.error(&tok, format!("expected {what}"));
-            None
+        match tok.kind {
+            TokenKind::Number(n) => {
+                self.pos += 1;
+                Some(n)
+            }
+            TokenKind::BadNumber => {
+                self.error(&tok, "integer literal out of range");
+                None
+            }
+            _ => {
+                self.error(&tok, format!("expected {what}"));
+                None
+            }
         }
     }
 

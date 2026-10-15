@@ -111,6 +111,28 @@ fn truncated_document_reports_an_error_instead_of_no_puzzle() {
 }
 
 #[test]
+fn out_of_range_integer_literal_is_an_error() {
+    // An integer literal outside the i64 range must be diagnosed, not
+    // silently coerced to 0 and compiled into the artifact.
+    let out = parse_document(
+        "puzzle p {\n  target = 99999999999999999999\n  start = 0\n  ops {}\n  solution = []\n}",
+    );
+    assert!(
+        out.diagnostics.iter().any(|d| d.severity == "error"),
+        "expected an error for an out-of-range literal"
+    );
+
+    // i64::MIN is a valid literal.
+    let out = parse_document(
+        "puzzle p {\n  target = -9223372036854775808\n  start = 0\n  ops {}\n  solution = []\n}",
+    );
+    assert!(
+        !out.diagnostics.iter().any(|d| d.severity == "error"),
+        "i64::MIN is representable: {out:?}"
+    );
+}
+
+#[test]
 fn diagnostics_are_sorted_by_range_start() {
     // A syntax error late in the body plus a missing-section diagnostic at
     // the puzzle name must still come out ordered by range.start (§9.2).

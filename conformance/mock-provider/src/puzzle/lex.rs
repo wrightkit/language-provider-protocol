@@ -27,6 +27,8 @@ pub(super) enum TokenKind {
     /// A character outside the token grammar. Carries the char so diagnostics
     /// can name it; the parser never accepts it as an identifier.
     Unknown(char),
+    /// An integer literal outside the i64 range.
+    BadNumber,
 }
 
 impl TokenKind {
@@ -88,7 +90,7 @@ pub(super) fn tokenize(src: &SourceText<'_>, text: &str) -> Vec<Token> {
             b'-' if bytes.get(i + 1).is_some_and(|b| b.is_ascii_digit()) => {
                 let (n, end) = read_number(text, i);
                 i = end;
-                TokenKind::Number(n)
+                n.map_or(TokenKind::BadNumber, TokenKind::Number)
             }
             b'-' => {
                 i += 1;
@@ -97,7 +99,7 @@ pub(super) fn tokenize(src: &SourceText<'_>, text: &str) -> Vec<Token> {
             b if b.is_ascii_digit() => {
                 let (n, end) = read_number(text, i);
                 i = end;
-                TokenKind::Number(n)
+                n.map_or(TokenKind::BadNumber, TokenKind::Number)
             }
             b if b.is_ascii_alphabetic() || b == b'_' => {
                 while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
@@ -127,16 +129,15 @@ pub(super) fn tokenize(src: &SourceText<'_>, text: &str) -> Vec<Token> {
     tokens
 }
 
-fn read_number(text: &str, i: usize) -> (i64, usize) {
+fn read_number(text: &str, i: usize) -> (Option<i64>, usize) {
     let bytes = text.as_bytes();
-    let negative = bytes[i] == b'-';
-    let mut end = i + usize::from(negative);
+    let mut end = i + usize::from(bytes[i] == b'-');
     while end < bytes.len() && bytes[end].is_ascii_digit() {
         end += 1;
     }
-    let digits = &text[i + usize::from(negative)..end];
-    let value = digits.parse::<i64>().unwrap_or(0);
-    (if negative { -value } else { value }, end)
+    // Parse the signed slice so -9223372036854775808 (i64::MIN) stays
+    // representable; out-of-range literals surface as `None`.
+    (text[i..end].parse::<i64>().ok(), end)
 }
 
 /// Human-readable token description for parse diagnostics.
@@ -146,6 +147,7 @@ pub(super) fn describe(tok: &Token) -> String {
         TokenKind::Number(n) => format!("number {n}"),
         TokenKind::Newline => "end of line".to_string(),
         TokenKind::Unknown(ch) => format!("unrecognized '{}'", ch.escape_default()),
+        TokenKind::BadNumber => "out-of-range integer literal".to_string(),
         other => format!("'{other:?}'"),
     }
 }
