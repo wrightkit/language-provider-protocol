@@ -194,7 +194,7 @@ impl Loader<'_> {
         for entry in entries {
             let path = entry.path();
             if path != entry_path {
-                if !path.extension().is_some_and(|ext| ext == "xdl") {
+                if path.extension().is_none_or(|ext| ext != "xdl") {
                     continue;
                 }
                 // A directory named `*.xdl` is not a source file; symlinks
