@@ -17,6 +17,12 @@ pub(crate) fn parse_document(text: &str) -> ParseOutput {
         diagnostics: Vec::new(),
     };
     let puzzle = parse_top(&mut parser);
+    // Spec section 9.2: diagnostics are sorted by range.start. Diagnostics
+    // are pushed in analysis phases (body errors, then missing-section at the
+    // puzzle name, then semantic checks), so a stable sort is required.
+    parser
+        .diagnostics
+        .sort_by_key(|d| (d.range.start.line, d.range.start.character));
     ParseOutput {
         puzzle,
         diagnostics: parser.diagnostics,

@@ -97,6 +97,21 @@ fn truncated_document_reports_an_error_instead_of_no_puzzle() {
 }
 
 #[test]
+fn diagnostics_are_sorted_by_range_start() {
+    // A syntax error late in the body plus a missing-section diagnostic at
+    // the puzzle name must still come out ordered by range.start (§9.2).
+    const SRC: &str = "puzzle p {\n  start = 1\n  ops {\n    d: x => x + 1\n  }\n  solution = [ d ]\n  ???\n}";
+    let out = parse_document(SRC);
+    let mut sorted = out.diagnostics.clone();
+    sorted.sort_by_key(|d| (d.range.start.line, d.range.start.character));
+    assert_eq!(
+        out.diagnostics.iter().map(|d| &d.code).collect::<Vec<_>>(),
+        sorted.iter().map(|d| &d.code).collect::<Vec<_>>(),
+        "diagnostics are not sorted by range.start"
+    );
+}
+
+#[test]
 fn arithmetic_failure_is_an_error_not_silence() {
     // Division by zero and i64 overflow make simulate() return None; that
     // must surface as an error diagnostic or compile's "no errors implies
