@@ -64,16 +64,24 @@ pub(crate) fn run_scenario(
                 ));
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
-                let status = wait_exit(&mut child, EXIT_TIMEOUT);
+                // stdout is closed, so no response can ever arrive; reap the
+                // provider immediately instead of waiting out the timeout.
+                let status = kill(&mut child);
                 return Err(format!(
                     "step {i}: provider closed stdout without responding (exit status {status:?})"
                 ));
             }
         };
-        let actual: Value = serde_json::from_str(&response_line)
-            .map_err(|e| format!("step {i}: response is not valid JSON: {e}"))?;
+        let actual: Value = match serde_json::from_str(&response_line) {
+            Ok(actual) => actual,
+            Err(e) => {
+                kill(&mut child);
+                return Err(format!("step {i}: response is not valid JSON: {e}"));
+            }
+        };
         let expected = substitute_project_uri(&step.expect_response, project.as_ref());
         if let Err(detail) = crate::matcher::matches(&expected, &actual) {
+            kill(&mut child);
             return Err(format!(
                 "step {i}: response mismatch at {detail}\n  expected: {}\n  actual:   {}",
                 serde_json::to_string_pretty(&expected).expect("serializes"),
@@ -101,7 +109,10 @@ pub(crate) fn run_scenario(
             "expected exit code {expected_exit}, got {actual_exit}"
         ));
     }
-    let _ = reader_thread.join();
+    // Do not join the reader: a provider descendant inheriting stdout keeps
+    // the pipe open past the child's exit and a join could block forever.
+    // The thread ends on EOF or a failed send, and dies with the process.
+    drop(reader_thread);
     Ok(())
 }
 
@@ -136,4 +147,115 @@ fn wait_exit(child: &mut Child, timeout: Duration) -> std::process::ExitStatus {
 fn kill(child: &mut Child) -> std::process::ExitStatus {
     let _ = child.kill();
     child.wait().unwrap_or_default()
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    /// Scratch dir for fake-provider scripts under the repo's ignored
+    /// `target/`; removed at test start and end so reruns stay clean.
+    fn scratch(name: &str) -> PathBuf {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../target/runner-tests")
+            .join(format!("{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("create scratch dir");
+        dir
+    }
+
+    fn scenario(script: &Path, extra_args: Vec<String>, steps: Vec<Step>) -> Scenario {
+        Scenario {
+            name: "test".into(),
+            description: None,
+            scope: "test".into(),
+            session: None,
+            provider_args: std::iter::once(script.to_str().unwrap().to_string())
+                .chain(extra_args)
+                .collect(),
+            project_files: None,
+            steps,
+            expect_exit_code: Some(0),
+        }
+    }
+
+    fn check_step(expect_response: Value) -> Step {
+        Step {
+            request: StepRequest::Request(
+                json!({"jsonrpc":"2.0","id":1,"method":"lpp/check","params":{}}),
+            ),
+            expect_response,
+        }
+    }
+
+    /// Run the script as `/bin/sh <script> <args…>` and assert the provider
+    /// pid recorded in the pidfile is reaped after the scenario fails.
+    fn assert_provider_reaped(script_body: &str) {
+        let dir = scratch("reaped");
+        let script = dir.join("provider.sh");
+        let pidfile = dir.join("pid");
+        fs::write(&script, script_body).unwrap();
+        let scenario = scenario(
+            &script,
+            vec![pidfile.to_str().unwrap().to_string()],
+            vec![check_step(json!({"jsonrpc":"2.0","id":1,"result":{"ok":true}}))],
+        );
+        assert!(run_scenario(&scenario, "/bin/sh", 0).is_err());
+        let pid = fs::read_to_string(&pidfile).unwrap().trim().to_string();
+        let alive = Command::new("kill")
+            .args(["-0", &pid])
+            .status()
+            .is_ok_and(|s| s.success());
+        // Clean up either way so a leaked sleeper does not linger.
+        let _ = Command::new("kill").arg(&pid).status();
+        fs::remove_dir_all(&dir).ok();
+        assert!(!alive, "provider {pid} was not killed/reaped");
+    }
+
+    #[test]
+    fn mismatched_response_kills_provider() {
+        // A response that fails the matcher must not leave the provider
+        // running.
+        assert_provider_reaped(
+            "#!/bin/sh\necho $$ > \"$1\"\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'\nexec sleep 30\n",
+        );
+    }
+
+    #[test]
+    fn unparseable_response_kills_provider() {
+        // A non-JSON line must not leave the provider running either.
+        assert_provider_reaped("#!/bin/sh\necho $$ > \"$1\"\necho 'not-json'\nexec sleep 30\n");
+    }
+
+    #[test]
+    fn exit_is_not_blocked_by_descendant_holding_stdout() {
+        // The provider answers and exits while a spawned descendant keeps
+        // stdout open; the runner must not block joining the reader thread.
+        let dir = scratch("grandchild");
+        let script = dir.join("provider.sh");
+        let pidfile = dir.join("pid");
+        fs::write(
+            &script,
+            "#!/bin/sh\nsleep 8 &\necho $! > \"$1\"\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'\nexit 0\n",
+        )
+        .unwrap();
+        let scenario = scenario(
+            &script,
+            vec![pidfile.to_str().unwrap().to_string()],
+            vec![check_step(json!({"jsonrpc":"2.0","id":1,"result":{}}))],
+        );
+        let start = Instant::now();
+        run_scenario(&scenario, "/bin/sh", 0).expect("scenario passes");
+        let elapsed = start.elapsed();
+        let pid = fs::read_to_string(&pidfile).unwrap().trim().to_string();
+        let _ = Command::new("kill").arg(&pid).status();
+        fs::remove_dir_all(&dir).ok();
+        assert!(
+            elapsed < Duration::from_secs(4),
+            "blocked {elapsed:?} on a descendant holding stdout"
+        );
+    }
 }
