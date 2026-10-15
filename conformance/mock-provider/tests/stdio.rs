@@ -106,7 +106,10 @@ fn rename_refuses_when_a_document_has_errors() {
     );
     let responses = run_session(format!("{INIT}\n{request}\n").as_bytes());
     let lpp = &responses[1]["error"]["data"]["lpp"];
-    assert_eq!(lpp["kind"], "invalidDocument", "expected refusal, got {responses:?}");
+    assert_eq!(
+        lpp["kind"], "invalidDocument",
+        "expected refusal, got {responses:?}"
+    );
 }
 
 /// Scratch directory under the repo's ignored `target/` for project-loader
@@ -124,7 +127,8 @@ const VALID: &str =
     "puzzle p {\n  target = 1\n  start = 0\n  ops {\n    a: x => x + 1\n  }\n  solution = [ a ]\n}";
 
 fn check_directory(root: &std::path::Path) -> serde_json::Value {
-    let init = r#"{"jsonrpc":"2.0","id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.6"}}"#;
+    let init =
+        r#"{"jsonrpc":"2.0","id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.6"}}"#;
     let request = format!(
         r#"{{"jsonrpc":"2.0","id":2,"method":"lpp/check","params":{{"entry":{{"uri":"file://{}","languageId":"x-demo-lang","version":1,"kind":"directory"}}}}}}"#,
         root.display()

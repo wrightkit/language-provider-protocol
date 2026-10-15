@@ -45,9 +45,7 @@ fn main() {
             })
             .into_iter()
             .map(|entry| entry.path())
-            .filter(|path| {
-                path.is_file() && path.extension().is_some_and(|ext| ext == "json")
-            })
+            .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext == "json"))
             .collect(),
         Err(error) => {
             usage_error(&format!(

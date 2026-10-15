@@ -136,7 +136,8 @@ fn out_of_range_integer_literal_is_an_error() {
 fn diagnostics_are_sorted_by_range_start() {
     // A syntax error late in the body plus a missing-section diagnostic at
     // the puzzle name must still come out ordered by range.start (§9.2).
-    const SRC: &str = "puzzle p {\n  start = 1\n  ops {\n    d: x => x + 1\n  }\n  solution = [ d ]\n  ???\n}";
+    const SRC: &str =
+        "puzzle p {\n  start = 1\n  ops {\n    d: x => x + 1\n  }\n  solution = [ d ]\n  ???\n}";
     let out = parse_document(SRC);
     let mut sorted = out.diagnostics.clone();
     sorted.sort_by_key(|d| (d.range.start.line, d.range.start.character));
@@ -448,8 +449,7 @@ fn rename_ranges_are_sorted_when_solution_precedes_ops() {
     // `solution` may precede `ops` in a document; rename edits must still be
     // sorted by range.start (§15.2) even though occurrences lists the
     // declaration first.
-    const SRC: &str =
-        "puzzle p {\n  target = 2\n  start = 1\n  solution = [ d ]\n  ops {\n    d: x => x + 1\n  }\n}";
+    const SRC: &str = "puzzle p {\n  target = 2\n  start = 1\n  solution = [ d ]\n  ops {\n    d: x => x + 1\n  }\n}";
     let (src, puzzle) = puzzle_of(SRC);
     let symbol = symbol_at(&src, &puzzle, 5, 4).expect("op d");
     let ranges = puzzle.rename_ranges(&symbol, true);
@@ -462,8 +462,7 @@ fn rename_ranges_are_sorted_when_solution_precedes_ops() {
 fn puzzle_symbol_occurrences_do_not_include_a_same_named_op() {
     // Position on the puzzle name `a` while an op `a` exists: the puzzle
     // symbol's occurrences are its own declaration only — never the op's.
-    const SRC: &str =
-        "puzzle a {\n  target = 2\n  start = 1\n  ops {\n    a: x => x + 1\n  }\n  solution = [ a ]\n}";
+    const SRC: &str = "puzzle a {\n  target = 2\n  start = 1\n  ops {\n    a: x => x + 1\n  }\n  solution = [ a ]\n}";
     let (src, puzzle) = puzzle_of(SRC);
     let symbol = symbol_at(&src, &puzzle, 0, 7).expect("puzzle name");
     assert!(matches!(symbol, Symbol::Puzzle { .. }));

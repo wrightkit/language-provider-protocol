@@ -220,7 +220,9 @@ mod tests {
         let scenario = scenario(
             &script,
             vec![pidfile.to_str().unwrap().to_string()],
-            vec![check_step(json!({"jsonrpc":"2.0","id":1,"result":{"ok":true}}))],
+            vec![check_step(
+                json!({"jsonrpc":"2.0","id":1,"result":{"ok":true}}),
+            )],
         );
         assert!(run_scenario(&scenario, "/bin/sh", 0).is_err());
         let pid = fs::read_to_string(&pidfile).unwrap().trim().to_string();
@@ -320,8 +322,10 @@ mod tests {
                 expect_response: json!({"jsonrpc":"2.0","id":null,"result":{}}),
             }],
         );
-        scenario.project_files =
-            Some(std::collections::HashMap::from([("entry.xdl".to_string(), String::new())]));
+        scenario.project_files = Some(std::collections::HashMap::from([(
+            "entry.xdl".to_string(),
+            String::new(),
+        )]));
         run_scenario(&scenario, "/bin/sh", 0).expect("placeholder substituted");
         fs::remove_dir_all(&dir).ok();
     }
