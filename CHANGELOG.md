@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/wrightkit/language-provider-protocol/compare/v1.7.0...v1.7.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* adversarial audit findings ([#62](https://github.com/wrightkit/language-provider-protocol/issues/62)–[#83](https://github.com/wrightkit/language-provider-protocol/issues/83)) ([#86](https://github.com/wrightkit/language-provider-protocol/issues/86)) ([2b348b2](https://github.com/wrightkit/language-provider-protocol/commit/2b348b204fb5ab204ee98a7e3dae4f0e3dd73127))
+
 ## [1.7.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.6.0...v1.7.0) (2026-10-11)
 
 
