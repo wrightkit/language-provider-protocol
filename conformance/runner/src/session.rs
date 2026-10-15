@@ -212,8 +212,8 @@ mod tests {
 
     /// Run the script as `/bin/sh <script> <args…>` and assert the provider
     /// pid recorded in the pidfile is reaped after the scenario fails.
-    fn assert_provider_reaped(script_body: &str) {
-        let dir = scratch("reaped");
+    fn assert_provider_reaped(scratch_name: &str, script_body: &str) {
+        let dir = scratch(scratch_name);
         let script = dir.join("provider.sh");
         let pidfile = dir.join("pid");
         fs::write(&script, script_body).unwrap();
@@ -241,6 +241,7 @@ mod tests {
         // A response that fails the matcher must not leave the provider
         // running.
         assert_provider_reaped(
+            "reaped-mismatch",
             "#!/bin/sh\necho $$ > \"$1\"\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'\nexec sleep 30\n",
         );
     }
@@ -248,7 +249,10 @@ mod tests {
     #[test]
     fn unparseable_response_kills_provider() {
         // A non-JSON line must not leave the provider running either.
-        assert_provider_reaped("#!/bin/sh\necho $$ > \"$1\"\necho 'not-json'\nexec sleep 30\n");
+        assert_provider_reaped(
+            "reaped-unparseable",
+            "#!/bin/sh\necho $$ > \"$1\"\necho 'not-json'\nexec sleep 30\n",
+        );
     }
 
     #[test]
@@ -260,7 +264,7 @@ mod tests {
         let pidfile = dir.join("pid");
         fs::write(
             &script,
-            "#!/bin/sh\nsleep 8 &\necho $! > \"$1\"\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'\nexit 0\n",
+            "#!/bin/sh\nread line\nsleep 8 &\necho $! > \"$1\"\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'\nexit 0\n",
         )
         .unwrap();
         let scenario = scenario(
@@ -287,7 +291,7 @@ mod tests {
         let script = dir.join("provider.sh");
         fs::write(
             &script,
-            "#!/bin/sh\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'\necho '{\"extra\":true}'\nexit 0\n",
+            "#!/bin/sh\nread line\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'\necho '{\"extra\":true}'\nexit 0\n",
         )
         .unwrap();
         let scenario = scenario(
