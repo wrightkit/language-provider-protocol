@@ -124,7 +124,14 @@ impl Puzzle {
                     Vec::new()
                 }
             }
-            Symbol::Op { name } => self.occurrences(name, true),
+            Symbol::Op { name } => {
+                // §15.2 requires edits sorted by range.start; occurrences
+                // lists the declaration first (a §14.2 carve-out for
+                // references), which misorders when `solution` precedes `ops`.
+                let mut ranges = self.occurrences(name, true);
+                ranges.sort_by_key(|r| (r.start.line, r.start.character));
+                ranges
+            }
         }
     }
 }

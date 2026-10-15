@@ -376,6 +376,21 @@ fn occurrences_list_declaration_first_then_references() {
 }
 
 #[test]
+fn rename_ranges_are_sorted_when_solution_precedes_ops() {
+    // `solution` may precede `ops` in a document; rename edits must still be
+    // sorted by range.start (§15.2) even though occurrences lists the
+    // declaration first.
+    const SRC: &str =
+        "puzzle p {\n  target = 2\n  start = 1\n  solution = [ d ]\n  ops {\n    d: x => x + 1\n  }\n}";
+    let (src, puzzle) = puzzle_of(SRC);
+    let symbol = symbol_at(&src, &puzzle, 5, 4).expect("op d");
+    let ranges = puzzle.rename_ranges(&symbol, true);
+    let mut sorted = ranges.clone();
+    sorted.sort_by_key(|r| (r.start.line, r.start.character));
+    assert_eq!(ranges, sorted, "rename ranges are not sorted");
+}
+
+#[test]
 fn rename_ranges_for_op_cover_declaration_and_references() {
     let (src, puzzle) = puzzle_of(CLEAN);
     let symbol = symbol_at(&src, &puzzle, 7, 16).expect("symbol");
