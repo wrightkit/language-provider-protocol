@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.7.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.6.0...v1.7.0) (2026-10-10)
+## [1.7.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.6.0...v1.7.0) (2026-10-11)
 
 
 ### Features
