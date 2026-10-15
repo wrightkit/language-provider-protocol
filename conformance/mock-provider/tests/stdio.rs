@@ -74,6 +74,24 @@ fn non_utf8_line_gets_parse_error_and_session_continues() {
 }
 
 #[test]
+fn request_shape_strictness() {
+    // Spec section 4: `id` is an integer or string; `params` is REQUIRED.
+    let requests = [
+        // Fractional and boolean ids are not integer/string ids.
+        r#"{"jsonrpc":"2.0","id":1.5,"method":"lpp/initialize","params":{"protocolVersion":"1.0"}}"#,
+        r#"{"jsonrpc":"2.0","id":true,"method":"lpp/initialize","params":{"protocolVersion":"1.0"}}"#,
+        // Missing `params`, and a non-object `params`.
+        r#"{"jsonrpc":"2.0","id":3,"method":"lpp/initialize"}"#,
+        r#"{"jsonrpc":"2.0","id":4,"method":"lpp/initialize","params":[]}"#,
+    ];
+    let responses = run_session(format!("{}\n", requests.join("\n")).as_bytes());
+    assert_eq!(responses[0]["error"]["code"], -32600, "{responses:?}");
+    assert_eq!(responses[1]["error"]["code"], -32600, "{responses:?}");
+    assert_eq!(responses[2]["error"]["code"], -32602, "{responses:?}");
+    assert_eq!(responses[3]["error"]["code"], -32602, "{responses:?}");
+}
+
+#[test]
 fn rename_refuses_when_a_document_has_errors() {
     // A document whose parse produced error diagnostics cannot be renamed
     // atomically — spec section 15.2 requires covering every reference in

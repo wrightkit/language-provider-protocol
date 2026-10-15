@@ -125,10 +125,13 @@ impl Server {
             return invalid_request();
         };
         let id = match object.get("id") {
-            Some(id @ (Value::Number(_) | Value::String(_))) => id.clone(),
+            Some(id @ Value::String(_)) => id.clone(),
+            // Request ids are integers or strings (spec section 4); a
+            // fractional number is not an integer.
+            Some(id @ Value::Number(_)) if id.is_i64() || id.is_u64() => id.clone(),
             // No notifications in LPP v1: a message without an id (or with a
             // null id) is a protocol violation.
-            _ => {
+            None | Some(Value::Null) => {
                 return lpp_error(
                     Value::Null,
                     "invalidRequest",
@@ -136,8 +139,15 @@ impl Server {
                     "invalid request: LPP v1 defines no notifications",
                 );
             }
+            // Any other id shape (bool, float, array, object) is not a valid
+            // JSON-RPC request.
+            Some(_) => return invalid_request(),
         };
-        let params = object.get("params").cloned().unwrap_or_else(|| json!({}));
+        // `params` is a REQUIRED object in every LPP v1 request.
+        let params = match object.get("params") {
+            Some(params @ Value::Object(_)) => params.clone(),
+            _ => return std_error(id.clone(), -32602, "Invalid params"),
+        };
         match method {
             "lpp/initialize" => self.initialize(&id, params),
             "lpp/shutdown" => self.shutdown(&id),
