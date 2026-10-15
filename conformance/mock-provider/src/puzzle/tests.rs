@@ -105,6 +105,25 @@ fn utf16_positions_are_exact() {
 }
 
 #[test]
+fn trailing_newline_phantom_line_is_a_valid_position() {
+    // A document ending in '\n' has a phantom empty last line; a position
+    // there is valid (spec §6.4) and must not invert the line's byte range.
+    let src = SourceText::new("a\n");
+    assert_eq!(src.line_text(0), "a");
+    assert_eq!(src.line_text(1), "");
+    assert_eq!(src.byte_of(pos(1, 0)), Some(2));
+
+    let src = SourceText::new("a\r\n");
+    assert_eq!(src.line_text(1), "");
+    assert_eq!(src.byte_of(pos(1, 0)), Some(3));
+
+    // An empty line between two newlines stays empty, not inverted.
+    let src = SourceText::new("a\n\nb");
+    assert_eq!(src.line_text(1), "");
+    assert_eq!(src.byte_of(pos(1, 0)), Some(2));
+}
+
+#[test]
 fn compile_reconstruct_round_trip() {
     let out = parse_document(CLEAN);
     let puzzle = out.puzzle.expect("parsed");
