@@ -230,6 +230,25 @@ fn compile_reconstruct_round_trip() {
 }
 
 #[test]
+fn reconstruct_rejects_names_the_parser_would_not_accept() {
+    // Names are written into generated source verbatim; anything outside
+    // the identifier grammar would emit text our own parser rejects (or
+    // inject extra syntax).
+    for bad in ["has space", "a\nb", "", "x-y", "9lives"] {
+        for content in [
+            serde_json::json!({"name": bad, "target": 1, "start": 0, "ops": [], "solution": [], "value": 0}),
+            serde_json::json!({"name": "p", "target": 1, "start": 0, "ops": [{"name": bad, "op": "+", "arg": 1}], "solution": [], "value": 1}),
+            serde_json::json!({"name": "p", "target": 1, "start": 0, "ops": [], "solution": [bad], "value": 0}),
+        ] {
+            assert!(
+                reconstruct_source(&content.to_string()).is_none(),
+                "name {bad:?} must be rejected"
+            );
+        }
+    }
+}
+
+#[test]
 fn validate_edits_detects_overlap_in_original_order() {
     let edits = vec![edit(7, 15, 7, 21, "a"), edit(7, 18, 7, 23, "b")];
     match validate_edits(CLEAN, &edits) {
