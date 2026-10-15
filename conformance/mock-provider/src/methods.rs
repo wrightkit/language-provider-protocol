@@ -209,7 +209,7 @@ impl Server {
             &params.document.uri,
         )?;
         let locations: Vec<Value> = puzzle
-            .occurrences(symbol.name(), params.include_declaration)
+            .symbol_occurrences(&symbol, params.include_declaration)
             .into_iter()
             .map(|range| location_json(&params.document.uri, range))
             .collect();

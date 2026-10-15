@@ -34,15 +34,6 @@ pub(crate) enum Symbol {
     Op { name: String },
 }
 
-impl Symbol {
-    /// The name the symbol binds to.
-    pub(crate) fn name(&self) -> &str {
-        match self {
-            Symbol::Puzzle { name } | Symbol::Op { name } => name,
-        }
-    }
-}
-
 impl Puzzle {
     /// The symbol under `byte`: the puzzle name, an op declaration, or a
     /// solution reference, in that order.
@@ -101,6 +92,25 @@ impl Puzzle {
                 .map(|entry| entry.range),
         );
         ranges
+    }
+
+    /// Ranges where `symbol` occurs, resolved by symbol kind: a puzzle name
+    /// is only ever its own declaration (puzzle names are never referenced
+    /// elsewhere); an op is its declaration then references in document
+    /// order. Looking an op up by name is wrong for a puzzle symbol that
+    /// happens to share the op's name.
+    pub(crate) fn symbol_occurrences(
+        &self,
+        symbol: &Symbol,
+        include_declaration: bool,
+    ) -> Vec<Range> {
+        match symbol {
+            Symbol::Puzzle { .. } => include_declaration
+                .then_some(self.name_range)
+                .into_iter()
+                .collect(),
+            Symbol::Op { name } => self.occurrences(name, include_declaration),
+        }
     }
 
     /// Whether renaming `symbol` to `new_name` would collide with an

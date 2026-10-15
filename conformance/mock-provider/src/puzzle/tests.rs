@@ -404,6 +404,22 @@ fn rename_ranges_are_sorted_when_solution_precedes_ops() {
 }
 
 #[test]
+fn puzzle_symbol_occurrences_do_not_include_a_same_named_op() {
+    // Position on the puzzle name `a` while an op `a` exists: the puzzle
+    // symbol's occurrences are its own declaration only — never the op's.
+    const SRC: &str =
+        "puzzle a {\n  target = 2\n  start = 1\n  ops {\n    a: x => x + 1\n  }\n  solution = [ a ]\n}";
+    let (src, puzzle) = puzzle_of(SRC);
+    let symbol = symbol_at(&src, &puzzle, 0, 7).expect("puzzle name");
+    assert!(matches!(symbol, Symbol::Puzzle { .. }));
+    assert_eq!(
+        puzzle.symbol_occurrences(&symbol, true),
+        vec![rng(0, 7, 0, 8)]
+    );
+    assert!(puzzle.symbol_occurrences(&symbol, false).is_empty());
+}
+
+#[test]
 fn rename_ranges_for_op_cover_declaration_and_references() {
     let (src, puzzle) = puzzle_of(CLEAN);
     let symbol = symbol_at(&src, &puzzle, 7, 16).expect("symbol");
