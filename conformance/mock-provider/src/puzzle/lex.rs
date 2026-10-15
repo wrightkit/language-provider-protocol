@@ -24,6 +24,9 @@ pub(super) enum TokenKind {
     Minus,
     Slash,
     Newline,
+    /// A character outside the token grammar. Carries the char so diagnostics
+    /// can name it; the parser never accepts it as an identifier.
+    Unknown(char),
 }
 
 impl TokenKind {
@@ -108,8 +111,11 @@ pub(super) fn tokenize(src: &SourceText<'_>, text: &str) -> Vec<Token> {
                     kind.clone()
                 }
                 None => {
-                    i += 1;
-                    TokenKind::Ident(format!("<unknown:{b}>"))
+                    // Consume the whole character so token ranges stay on
+                    // UTF-8 boundaries; `SourceText` positions slice `text`.
+                    let ch = text[i..].chars().next().expect("in-bounds byte");
+                    i += ch.len_utf8();
+                    TokenKind::Unknown(ch)
                 }
             },
         };
@@ -139,6 +145,7 @@ pub(super) fn describe(tok: &Token) -> String {
         TokenKind::Ident(name) => format!("'{name}'"),
         TokenKind::Number(n) => format!("number {n}"),
         TokenKind::Newline => "end of line".to_string(),
+        TokenKind::Unknown(ch) => format!("unrecognized '{}'", ch.escape_default()),
         other => format!("'{other:?}'"),
     }
 }

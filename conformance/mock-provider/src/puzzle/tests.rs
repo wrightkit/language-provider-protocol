@@ -64,6 +64,24 @@ fn malformed_op_declaration_skips_following_line() {
 }
 
 #[test]
+fn unknown_bytes_are_syntax_errors_not_identifiers() {
+    // '@', '$', and multi-byte characters are not part of the token grammar:
+    // they must surface as syntax errors, never parse as identifiers, and
+    // must not panic the diagnostic path.
+    for src in [
+        "puzzle @ {\n  target = 1\n  start = 0\n  ops {}\n  solution = []\n}",
+        "puzzle p {\n  target = 1\n  start = 0\n  ops {\n    $: x => x + 1\n  }\n  solution = [ $ ]\n}",
+        "puzzle α {\n  target = 1\n  start = 0\n  ops {}\n  solution = []\n}",
+    ] {
+        let out = parse_document(src);
+        assert!(
+            out.diagnostics.iter().any(|d| d.severity == "error"),
+            "expected a syntax error for {src:?}"
+        );
+    }
+}
+
+#[test]
 fn warns_when_target_not_reached() {
     let out = parse_document(WARM);
     assert_eq!(out.diagnostics.len(), 1);
