@@ -34,8 +34,7 @@ All LPP-defined errors use JSON-RPC error code `-32000` and carry a structured
         "kind": "refusal",
         "details": {
           "refusalCode": "rename.noSymbolAtPosition",
-          "uri": "file:///project/puzzle.xdl",
-          "range": { "start": { "line": 1, "character": 2 }, "end": { "line": 1, "character": 3 } }
+          "uri": "file:///project/puzzle.xdl"
         }
       }
     }
@@ -56,7 +55,16 @@ All LPP-defined errors use JSON-RPC error code `-32000` and carry a structured
 | `invalidPosition` | `{ "uri": string, "position": Position }` | A position outside the document. |
 | `invalidArtifact` | `{ "reason": string }` | An artifact in a supported format whose content is malformed. |
 | `capabilityUnavailable` | `{ "capability": string, "method": string }` | A method was invoked whose capability was not negotiated. |
-| `refusal` | `{ "refusalCode": string, "uri"?: string, "range"?: Range }` | A deliberate decline; `refusalCode` identifies the reason. |
+| `refusal` | `{ "refusalCode": string }` plus the keys below | A deliberate decline; `refusalCode` identifies the reason. |
+
+A refusal `details` object carries `refusalCode` plus the request values the
+refusal declines, echoed under spec-owned keys exactly as each refusal's
+defining section requires. The spec-owned refusal detail keys are `uri` (the
+document URI the refusal concerns), `format` (a declined artifact format),
+`newName` (a declined rename `newName`), and `within` (a declined lookup
+`within` selector). A refusal `details` object MUST NOT carry keys outside
+`refusalCode` and the keys its defining section requires; provider-specific
+context belongs in `message`.
 
 `data.lpp` MUST NOT be attached to the standard JSON-RPC errors
 ([Section 4.1](#41-standard-json-rpc-errors)).

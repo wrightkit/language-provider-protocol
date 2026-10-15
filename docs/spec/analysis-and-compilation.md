@@ -179,7 +179,9 @@ Reconstruct source text from a Workshop artifact. This is the inverse of
 ### 11.3 Failure behavior
 
 * A well-formed artifact in a format the provider does not support MUST be
-  answered with a refusal, `refusalCode` = `reconstruct.artifactFormatUnsupported`.
+  answered with a refusal, `refusalCode` = `reconstruct.artifactFormatUnsupported`;
+  the refusal `details` MUST carry `format` echoing the request's
+  `artifact.format`.
 * A malformed artifact in a supported format (content does not parse, or does
   not match the format schema) MUST be answered with an LPP error of kind
   `invalidArtifact`.

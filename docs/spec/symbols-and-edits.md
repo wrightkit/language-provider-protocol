@@ -59,7 +59,8 @@ Resolve the definition of the symbol at a position.
   the position is already on a declaration, the declaration itself is
   returned.
 * When no symbol exists at `position`, the provider MUST refuse with
-  `refusalCode` = `definition.noSymbolAtPosition`.
+  `refusalCode` = `definition.noSymbolAtPosition`; the refusal `details`
+  MUST carry `uri` echoing the request's `document.uri`.
 * A `position` outside the document MUST produce an LPP error of kind
   `invalidPosition`.
 
@@ -101,7 +102,8 @@ Find all references to the symbol at a position within the document.
 * Locations MUST be sorted by `range.start`. When `includeDeclaration` is
   true, the declaration location is listed first.
 * When no symbol exists at `position`, the provider MUST refuse with
-  `refusalCode` = `references.noSymbolAtPosition`.
+  `refusalCode` = `references.noSymbolAtPosition`; the refusal `details`
+  MUST carry `uri` echoing the request's `document.uri`.
 
 ## 15. lpp/rename
 
@@ -167,11 +169,16 @@ mode; the provider MUST NOT return serialized ASTs or IR in place of edits.
 
 ### 15.3 Refusals
 
-* No symbol at `position`: `refusalCode` = `rename.noSymbolAtPosition`.
-* `newName` invalid for the language: `refusalCode` = `rename.invalidName`.
-* Rename would collide with an existing symbol: `refusalCode` = `rename.nameCollision`.
+* No symbol at `position`: `refusalCode` = `rename.noSymbolAtPosition`; the
+  refusal `details` MUST carry `uri` echoing the request's
+  `positionDocumentUri`.
+* `newName` invalid for the language: `refusalCode` = `rename.invalidName`;
+  the refusal `details` MUST carry `newName` echoing the rejected `newName`.
+* Rename would collide with an existing symbol: `refusalCode` =
+  `rename.nameCollision`; the refusal `details` MUST carry `newName` echoing
+  the rejected `newName`.
 * Rename needs an unreceived document: `refusalCode` =
-  `rename.requiresDocument` with `details` describing the requirement.
+  `rename.requiresDocument`.
 
 ## 16. lpp/validateEdits
 
