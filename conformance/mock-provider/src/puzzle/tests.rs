@@ -82,6 +82,21 @@ fn unknown_bytes_are_syntax_errors_not_identifiers() {
 }
 
 #[test]
+fn truncated_document_reports_an_error_instead_of_no_puzzle() {
+    // A document ending right after `puzzle` or `puzzle <name>` must produce
+    // an error diagnostic, not a silent `puzzle: None` — `lpp/compile`
+    // assumes no errors implies a puzzle.
+    for src in ["puzzle", "puzzle p", "puzzle p "] {
+        let out = parse_document(src);
+        assert!(out.puzzle.is_none(), "unexpectedly parsed {src:?}");
+        assert!(
+            out.diagnostics.iter().any(|d| d.severity == "error"),
+            "expected a diagnostic for {src:?}"
+        );
+    }
+}
+
+#[test]
 fn warns_when_target_not_reached() {
     let out = parse_document(WARM);
     assert_eq!(out.diagnostics.len(), 1);

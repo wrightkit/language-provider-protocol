@@ -56,6 +56,16 @@ impl Parser {
         }
     }
 
+    /// Report an unexpected end of input just past the last token.
+    fn eof_error(&mut self, what: &str) {
+        let at = self
+            .tokens
+            .last()
+            .map(|t| Range::point(t.range.end))
+            .unwrap_or_else(|| Range::point(Position::ORIGIN));
+        self.error_at(at, format!("unexpected end of input: expected {what}"));
+    }
+
     /// Report a syntax error at `range` without consuming input.
     fn error_at(&mut self, range: Range, message: impl Into<String>) {
         self.diagnostics
@@ -160,6 +170,10 @@ fn parse_top(parser: &mut Parser) -> Option<Puzzle> {
             return None;
         }
     }
+    if parser.peek().is_none() {
+        parser.eof_error("a puzzle name");
+        return None;
+    }
     let (name, name_tok) = parser.expect_ident()?;
     let mut puzzle = Puzzle {
         name,
@@ -170,6 +184,10 @@ fn parse_top(parser: &mut Parser) -> Option<Puzzle> {
         solution: Vec::new(),
         solution_range: Range::point(Position::ORIGIN),
     };
+    if parser.peek().is_none() {
+        parser.eof_error("'{'");
+        return None;
+    }
     if !parser.expect_punct(TokenKind::LBrace, "'{'") {
         return None;
     }
