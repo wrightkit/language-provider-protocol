@@ -15,6 +15,8 @@ mod wire;
 use std::collections::HashSet;
 use std::io::{self, BufRead, BufWriter, Write};
 
+use serde_json::Value;
+
 use server::{DEFAULT_PROTOCOL_VERSION, PROTOCOL_VERSIONS, Server};
 
 fn main() {
@@ -24,27 +26,42 @@ fn main() {
     let stdout = io::stdout();
     let mut out = BufWriter::new(stdout.lock());
     let mut server = Server::new(supported_version, disabled);
-    let mut line = String::new();
+    let mut buf = Vec::new();
     loop {
-        line.clear();
-        let read = reader
-            .read_line(&mut line)
-            .unwrap_or_else(|e| panic!("failed to read stdin: {e}"));
+        buf.clear();
+        let read = match reader.read_until(b'\n', &mut buf) {
+            Ok(n) => n,
+            Err(_) => break,
+        };
         if read == 0 {
             break;
         }
-        let message = line.trim_end_matches(['\r', '\n']);
-        if message.is_empty() {
-            continue;
+        let response = match std::str::from_utf8(&buf) {
+            Ok(line) => {
+                let message = line.trim_end_matches(['\r', '\n']);
+                if message.is_empty() {
+                    continue;
+                }
+                server.handle_message(message)
+            }
+            // A line that is not valid UTF-8 cannot be valid JSON: -32700 and
+            // the session continues.
+            Err(_) => rpc::std_error(Value::Null, -32700, "Parse error"),
+        };
+        if write_response(&mut out, &response).is_err() {
+            break;
         }
-        let response = server.handle_message(message);
-        let serialized = serde_json::to_string(&response).expect("response serializes");
-        writeln!(out, "{serialized}").expect("write stdout");
-        out.flush().expect("flush stdout");
         if server.exiting {
             break;
         }
     }
+}
+
+fn write_response(out: &mut impl Write, response: &Value) -> io::Result<()> {
+    let serialized = serde_json::to_string(response).expect("response serializes");
+    out.write_all(serialized.as_bytes())?;
+    out.write_all(b"\n")?;
+    out.flush()
 }
 
 /// `--protocol-version <v>` pins the supported version; `--without a,b,c`
