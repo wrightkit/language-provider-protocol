@@ -21,7 +21,6 @@ fn scratch(name: &str) -> PathBuf {
 
 #[test]
 fn flag_without_value_is_an_error_not_the_next_flag() {
-    // `--provider` followed by another flag must not swallow it as a value.
     let out = runner()
         .args(["--provider", "--validate-only"])
         .output()

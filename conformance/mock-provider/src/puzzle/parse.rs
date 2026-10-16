@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 use super::lex::{Token, TokenKind, describe, tokenize};
 use super::text::{Position, Range, SourceText};
-use super::{Diagnostic, Op, ParseOutput, Puzzle, SolutionEntry, diagnostic};
+use super::{Diagnostic, Op, ParseOutput, Puzzle, SimError, SolutionEntry, diagnostic};
 
 pub(crate) fn parse_document(text: &str) -> ParseOutput {
     let src = SourceText::new(text);
@@ -298,19 +298,15 @@ fn parse_top(parser: &mut Parser) -> Option<Puzzle> {
             Some(("x-demo/empty-solution", "solution is empty".to_string()))
         } else {
             match puzzle.simulate() {
-                Some(value) if value != puzzle.target => Some((
+                Ok(value) if value != puzzle.target => Some((
                     "x-demo/target-not-reached",
                     format!(
                         "solution does not reach target: expected {}, reached {}",
                         puzzle.target, value
                     ),
                 )),
-                Some(_) => None,
-                // All ops resolved here (unresolved references are already
-                // errors), so a failed simulation is an arithmetic failure:
-                // division by zero or integer overflow. It must be an error —
-                // compile cannot produce an artifact without a value.
-                None => {
+                Ok(_) | Err(SimError::UnknownOp) => None,
+                Err(SimError::Arithmetic) => {
                     parser.diagnostics.push(diagnostic(
                         puzzle.solution_range,
                         "error",
@@ -364,8 +360,6 @@ fn parse_op(parser: &mut Parser, puzzle: &mut Puzzle, name_tok: &Token) {
         return;
     };
     let name = name.clone();
-    // A failed expect_* has already reported and recovered to the next line;
-    // continuing would cascade the same diagnostic into the following op.
     if !parser.expect_punct(TokenKind::Colon, "':'") {
         return;
     }

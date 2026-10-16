@@ -75,7 +75,7 @@ impl OpKind {
             OpKind::Add => lhs.checked_add(rhs),
             OpKind::Sub => lhs.checked_sub(rhs),
             OpKind::Mul => lhs.checked_mul(rhs),
-            OpKind::Div => (rhs != 0).then(|| lhs / rhs),
+            OpKind::Div => lhs.checked_div(rhs),
         }
     }
 }
@@ -105,18 +105,24 @@ pub(crate) struct Puzzle {
     solution_range: Range,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SimError {
+    UnknownOp,
+    Arithmetic,
+}
+
 impl Puzzle {
     fn op(&self, name: &str) -> Option<&Op> {
         self.ops.iter().find(|op| op.name == name)
     }
 
-    pub(crate) fn simulate(&self) -> Option<i64> {
+    pub(crate) fn simulate(&self) -> Result<i64, SimError> {
         let mut value = self.start;
         for entry in &self.solution {
-            let op = self.op(&entry.name)?;
-            value = op.kind.apply(value, op.arg)?;
+            let op = self.op(&entry.name).ok_or(SimError::UnknownOp)?;
+            value = op.kind.apply(value, op.arg).ok_or(SimError::Arithmetic)?;
         }
-        Some(value)
+        Ok(value)
     }
 }
 

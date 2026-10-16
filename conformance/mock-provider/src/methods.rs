@@ -125,7 +125,9 @@ impl Server {
             let puzzle = parse_document(&entry.text)
                 .puzzle
                 .expect("no errors implies a puzzle");
-            let value = puzzle.simulate().expect("no errors implies resolvable ops");
+            let value = puzzle
+                .simulate()
+                .expect("no errors implies a clean simulation");
             let artifact = if format == SUMMARY_ARTIFACT_FORMAT {
                 summary_artifact(&puzzle, value)
             } else {
