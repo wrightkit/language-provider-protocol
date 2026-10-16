@@ -42,7 +42,7 @@ fn parses_clean_puzzle() {
     assert_eq!(puzzle.name, "clean");
     assert_eq!(puzzle.target, 40);
     assert_eq!(puzzle.start, 10);
-    assert_eq!(puzzle.simulate(), Some(40));
+    assert_eq!(puzzle.simulate(), Ok(40));
 }
 
 #[test]
@@ -150,9 +150,6 @@ fn diagnostics_are_sorted_by_range_start() {
 
 #[test]
 fn arithmetic_failure_is_an_error_not_silence() {
-    // Division by zero and i64 overflow make simulate() return None; that
-    // must surface as an error diagnostic or compile's "no errors implies
-    // resolvable ops" invariant breaks.
     for src in [
         "puzzle p {\n  target = 1\n  start = 1\n  ops {\n    d: x => x / 0\n  }\n  solution = [ d ]\n}",
         "puzzle p {\n  target = 1\n  start = 9223372036854775807\n  ops {\n    d: x => x + 1\n  }\n  solution = [ d ]\n}",
@@ -356,8 +353,6 @@ fn lookup_unknown_within_is_none() {
         assert!(lookup("", None, &scope, 20).is_none());
     }
 }
-
-// -- Symbol queries (lpp/symbols, definition, references, rename) ----------
 
 /// Parses `text` into a puzzle and returns it with its source text.
 fn puzzle_of(text: &str) -> (SourceText<'_>, Puzzle) {
