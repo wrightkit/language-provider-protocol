@@ -238,8 +238,6 @@ mod tests {
 
     #[test]
     fn mismatched_response_kills_provider() {
-        // A response that fails the matcher must not leave the provider
-        // running.
         assert_provider_reaped(
             "reaped-mismatch",
             "#!/bin/sh\necho $$ > \"$1\"\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}'\nexec sleep 30\n",
@@ -248,7 +246,6 @@ mod tests {
 
     #[test]
     fn unparseable_response_kills_provider() {
-        // A non-JSON line must not leave the provider running either.
         assert_provider_reaped(
             "reaped-unparseable",
             "#!/bin/sh\necho $$ > \"$1\"\necho 'not-json'\nexec sleep 30\n",
@@ -286,7 +283,6 @@ mod tests {
 
     #[test]
     fn output_past_the_last_step_fails() {
-        // A provider that emits an extra line after answering must not pass.
         let dir = scratch("extra");
         let script = dir.join("provider.sh");
         fs::write(
