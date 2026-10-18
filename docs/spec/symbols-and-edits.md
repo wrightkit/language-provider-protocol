@@ -243,8 +243,10 @@ The provider MUST apply edits as follows:
    invalid: `overlappingEdits` with the **original** request-order index of
    that later-in-document-order edit.
 4. Apply the sorted edits in order to produce the resulting text.
-5. Parse the resulting text. Any syntax or semantic error produces
-   `syntaxError`.
+5. Parse the resulting text. A document-local syntax error produces
+   `syntaxError`. Semantic checks (name resolution, typing,
+   cross-document consistency) are outside `lpp/validateEdits`; they
+   surface through `lpp/check` diagnostics instead.
 
 ## 17. lpp/shutdown
 
