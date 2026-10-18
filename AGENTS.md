@@ -21,9 +21,8 @@ Before implementing a task, identify the semantic and product owner:
   runner, and the reference mock provider), and the protocol's version
   negotiation contract. All protocol-visible schema changes live here.
 * **Wright (`wright`)**: Owns the client/runtime side: provider discovery,
-  process lifecycle, request correlation, and consuming LPP capabilities
-  (tracked in wrightkit/wright#142). Wright must not re-define protocol schema
-  in its own repository.
+  process lifecycle, request correlation, and consuming LPP capabilities.
+  Wright must not re-define protocol schema in its own repository.
 * **Language providers (OPY, OSTW, third-party)**: Own source-language syntax,
   parsers, ASTs, symbol resolution, and compiler internals. Their internals are
   never part of the wire contract.
@@ -64,8 +63,9 @@ The canonical validation commands for this repository are:
 cargo fmt --all --check
 cargo clippy --all-targets -- -D warnings
 cargo test --workspace
-./target/release/lpp-conformance-runner --validate-only --fixtures conformance/fixtures/v1
-./target/release/lpp-conformance-runner --provider ./target/release/lpp-mock-provider --fixtures conformance/fixtures/v1
+cargo build --locked --bin lpp-mock-provider --bin lpp-conformance-runner
+./target/debug/lpp-conformance-runner --validate-only --fixtures conformance/fixtures/v1
+./target/debug/lpp-conformance-runner --provider ./target/debug/lpp-mock-provider --fixtures conformance/fixtures/v1
 git diff --check
 ```
 
@@ -84,7 +84,7 @@ conformance; state the evidence level and boundary.
   conformance suite. Its language (`x-demo-lang`) must remain deliberately
   unlike OPY and DEL so that accidental two-language assumptions in the
   protocol surface as conformance failures.
-* **Client-side work** (wright#142 and later): belongs in `wrightkit/wright`,
+* **Client-side work**: belongs in `wrightkit/wright`,
   consuming this repository's contract, never redefining it.
 
 ## Delivery
