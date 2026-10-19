@@ -9,13 +9,6 @@ Short review queue of reusable failure classes from merged LPP work. Each entry 
 - **Prevention home:** conformance fixtures exercising each gated surface at each negotiated version; the spec's version-negotiation section.
 - **Incidents:** [#40](https://github.com/wrightkit/language-provider-protocol/pull/40), [#46](https://github.com/wrightkit/language-provider-protocol/pull/46) — observed 2026-09-24, 2026-10-05
 
-### A contract check must be exercised on both sides of the boundary
-
-- **Rule:** New enforcement logic — an input invariant, a capability or leaf matcher — lands only with evidence that it rejects what the contract forbids and accepts what it allows.
-- **Why:** The step request-shape invariant merged with no test for either invalid case; the provider-leaf matcher could weaken normative fixtures and misjudge provider results against the v1 spec, and still regressed after the first fix round.
-- **Prevention home:** invalid-input and boundary fixtures per enforcement path. Escalation: #89.
-- **Incidents:** [#51](https://github.com/wrightkit/language-provider-protocol/pull/51), [#53](https://github.com/wrightkit/language-provider-protocol/pull/53) — observed 2026-10-06
-
 ### A parity refactor must pin the baseline behavior it preserves
 
 - **Rule:** Rewriting a parser, recovery, or matching path requires pinning the baseline's observable edge behavior in tests first; a refactor that changes observable recovery silently drops normative behavior.

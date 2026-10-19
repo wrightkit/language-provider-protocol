@@ -54,6 +54,9 @@ implementation.
   the reference mock provider without protocol schema changes.
 * Fixtures and conformance scenarios are versioned (`conformance/fixtures/v1/`)
   so protocol evolution is testable across versions.
+* Contract-enforcement logic (fixture validation, the provider-leaf matcher,
+  wire invariants) lands with tests that reject what the contract forbids and
+  accept what it allows, including boundary cases, in the same change.
 
 ## Validation contract
 
