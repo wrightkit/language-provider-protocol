@@ -1,6 +1,6 @@
 # Lessons
 
-Short review queue of reusable failure classes from merged LPP work. Each entry names a prevention action and the evidence behind it. Promote an entry into a regression test, an owner contract, or an existing engineering standard, then remove it here. The procedure is the `wrightkit-retro` skill in `wrightkit/.agents`.
+Short review queue of reusable failure classes from merged LPP work. Each entry names a prevention action and the evidence behind it. Promote an entry into a regression test, an owner contract, or an existing engineering standard, then remove it here. The procedure is the `merged-pr-retro` skill in `wrightkit/.agents`.
 
 ### A version-gated feature must define every negotiated version state
 
