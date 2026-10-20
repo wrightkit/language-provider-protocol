@@ -1,0 +1,12 @@
+{
+  "name": "locale-param",
+  "description": "check and compile accept an optional string locale. The demo language has no locale-dependent text, so the result equals the no-locale result; a provider with locale-dependent text may differ. A locale that is not a string is rejected with -32602.",
+  "scope": "semantics",
+  "session": "1.0",
+  "steps": [
+    {"request":{"id":2,"method":"lpp/check","params":{"documents":{"file:///project/puzzle.xdl":{"uri":"file:///project/puzzle.xdl","languageId":"x-demo-lang","version":3,"text":"puzzle clean {\n  target = 40\n  start = 10\n  ops {\n    double: x => x * 2\n    plus1: x => x + 1\n  }\n  solution = [ double, double ]\n}"}},"locale":"en-US","projectRoot":"file:///project"}},"expectResponse":{"result":{"documents":[{"uri":"file:///project/puzzle.xdl","version":3,"diagnostics":[]}]}}},
+    {"request":{"id":3,"method":"lpp/compile","params":{"documents":{"file:///project/puzzle.xdl":{"uri":"file:///project/puzzle.xdl","languageId":"x-demo-lang","version":3,"text":"puzzle clean {\n  target = 40\n  start = 10\n  ops {\n    double: x => x * 2\n    plus1: x => x + 1\n  }\n  solution = [ double, double ]\n}"}},"locale":"zh-CN"}},"expectResponse":{"result":{"diagnostics":[{"uri":"file:///project/puzzle.xdl","version":3,"diagnostics":[]}],"artifact":{"format":"x-demo/puzzle-eval-v1","content":"{\"name\":\"clean\",\"ops\":[{\"arg\":2,\"name\":\"double\",\"op\":\"*\"},{\"arg\":1,\"name\":\"plus1\",\"op\":\"+\"}],\"solution\":[\"double\",\"double\"],\"start\":10,\"target\":40,\"value\":40}"}}}},
+    {"request":{"id":4,"method":"lpp/check","params":{"documents":{"file:///project/puzzle.xdl":{"uri":"file:///project/puzzle.xdl","languageId":"x-demo-lang","version":3,"text":"puzzle clean {\n  target = 40\n  start = 10\n  ops {\n    double: x => x * 2\n    plus1: x => x + 1\n  }\n  solution = [ double, double ]\n}"}},"locale":5}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}},
+    {"request":{"id":5,"method":"lpp/compile","params":{"documents":{"file:///project/puzzle.xdl":{"uri":"file:///project/puzzle.xdl","languageId":"x-demo-lang","version":3,"text":"puzzle clean {\n  target = 40\n  start = 10\n  ops {\n    double: x => x * 2\n    plus1: x => x + 1\n  }\n  solution = [ double, double ]\n}"}},"locale":["en-US"]}},"expectResponse":{"error":{"code":-32602,"message":{"$provider":"nonEmptyString"}}}}
+  ]
+}

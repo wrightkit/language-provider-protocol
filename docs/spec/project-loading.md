@@ -133,6 +133,7 @@ Document-scoped methods share this parameter shape:
 | `entry` | Project entry | `check`, `compile` in LPP 1.1 and later | Alternative to `documents`; asks the provider to load the source closure from the selected entry or directory target. |
 | `document` | Document | `definition`, `references`, `validateEdits` | The single document to operate on. |
 | `projectRoot` | string, OPTIONAL | `check`, `compile`, `symbols`, `rename` | URI identifying the project the documents belong to. Purely informational in v1; providers MUST accept and MAY use it. |
+| `locale` | string, OPTIONAL | `check`, `compile` | The Workshop client locale (for example `en-US` or `zh-CN`) for locale-dependent Workshop text. See [Section 8.3](#83-locale). |
 
 ### 8.1 Entry-based project requests (LPP 1.1 and later)
 
@@ -215,3 +216,40 @@ MUST be rejected as `invalidEntry`; the provider MUST NOT perform directory
 entry selection. Any other `kind` value MUST also be rejected as
 `invalidEntry`.
 
+### 8.3 Locale
+
+`locale` is an OPTIONAL string on `lpp/check` and `lpp/compile`, in both
+`documents` and `entry` requests and in every protocol version. It names the
+Workshop client locale (for example `"en-US"` or `"zh-CN"`) that selects the
+spelling of locale-dependent Workshop text: the provider reads such spellings
+in the source under that locale and writes them into the compile artifact under
+that locale. It does not select the source language, which `languageId`
+identifies. A provider without locale-dependent text MAY ignore the field.
+`locale` follows the unknown-field rules of
+[Section 19.1](errors-and-versioning.md#191-versioning-scheme) and needs no
+capability.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "lpp/check",
+  "params": {
+    "entry": { "uri": "file:///project/main.opy", "languageId": "opy", "version": 7 },
+    "locale": "zh-CN"
+  }
+}
+```
+
+* A request without `locale` uses the provider's default locale. A client
+  with no locale to state SHOULD omit the field. The default is
+  provider-defined (the `opy` provider uses `en-US`).
+* A `locale` value that is not a string is a schema violation and MUST produce
+  JSON-RPC `-32602`.
+* The behavior for a locale string that the provider does not serve is
+  provider-defined, and this specification requires no specific outcome. The
+  `opy` provider reports an error-severity `locale-unsupported` diagnostic from
+  `lpp/compile`, with a `null` artifact.
+* Non-normative: the `opy` provider judges locale-dependent spellings the same
+  way in `check` and `compile` for the same source and `locale`, and matches
+  locale tags case-insensitively. Matching rules are otherwise provider-defined.

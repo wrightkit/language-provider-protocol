@@ -48,6 +48,9 @@ pub(crate) struct DocsParams {
     pub entry: Option<ProjectEntry>,
     #[allow(dead_code)]
     pub project_root: Option<String>,
+    /// Validated as a string; the demo language has no locale-dependent text.
+    #[allow(dead_code)]
+    pub locale: Option<String>,
 }
 
 #[derive(Deserialize)]
