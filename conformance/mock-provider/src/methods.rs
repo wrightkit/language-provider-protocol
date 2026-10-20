@@ -436,7 +436,11 @@ fn select_artifact_format(accepted: Option<Vec<String>>) -> Result<&'static str,
 fn sha256_hex(text: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(text.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 /// Document-set entries in key order.
