@@ -1,0 +1,15 @@
+# Human review is required for what defines "passing": CI and release gates,
+# public contracts, compatibility references, and agent instructions.
+# Ordinary code, tests, and docs stay unowned, so agents may review and merge them.
+/.github/ @Teakowa
+/AGENTS.md @Teakowa
+/docs/adr/ @Teakowa
+
+# The protocol and its conformance suite are the public contract
+/docs/spec/ @Teakowa
+/conformance/ @Teakowa
+
+# Toolchain and release
+/rust-toolchain.toml @Teakowa
+/release-please-config.json @Teakowa
+/.release-please-manifest.json @Teakowa
