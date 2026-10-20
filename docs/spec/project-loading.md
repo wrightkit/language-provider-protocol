@@ -242,15 +242,14 @@ capability.
 ```
 
 * A request without `locale` uses the provider's default locale. A client
-  that has no locale to state MUST omit the field. The provider's default is
+  with no locale to state SHOULD omit the field. The default is
   provider-defined (the `opy` provider uses `en-US`).
-* `check` and `compile` for the same source and the same `locale` MUST judge
-  locale-dependent spellings the same way.
 * A `locale` value that is not a string is a schema violation and MUST produce
   JSON-RPC `-32602`.
-* A `locale` string that the provider does not serve MUST NOT fail the request
-  with `-32602`. The provider MAY ignore it, or MAY report the failure as an
-  error-severity diagnostic, in which case the `lpp/compile` artifact is
-  `null` ([Section 10.2](analysis-and-compilation.md#102-result)). The `opy`
-  provider reports the diagnostic code `locale-unsupported` from `lpp/compile`.
-* Locale tag matching rules (for example case folding) are provider-defined.
+* The behavior for a locale string that the provider does not serve is
+  provider-defined, and this specification requires no specific outcome. The
+  `opy` provider reports an error-severity `locale-unsupported` diagnostic from
+  `lpp/compile`, with a `null` artifact.
+* Non-normative: the `opy` provider judges locale-dependent spellings the same
+  way in `check` and `compile` for the same source and `locale`, and matches
+  locale tags case-insensitively. Matching rules are otherwise provider-defined.

@@ -1,6 +1,6 @@
 {
   "name": "locale-param",
-  "description": "check and compile accept an optional string locale, with or without projectRoot, and return the same result as without it; a locale that is not a string is rejected with -32602.",
+  "description": "check and compile accept an optional string locale. The demo language has no locale-dependent text, so the result equals the no-locale result; a provider with locale-dependent text may differ. A locale that is not a string is rejected with -32602.",
   "scope": "semantics",
   "session": "1.0",
   "steps": [
