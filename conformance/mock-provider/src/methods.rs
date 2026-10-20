@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use std::fmt::Write;
 
 use crate::project::documents_for_request;
 use crate::puzzle::{
@@ -436,7 +437,13 @@ fn select_artifact_format(accepted: Option<Vec<String>>) -> Result<&'static str,
 fn sha256_hex(text: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(text.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hasher
+        .finalize()
+        .iter()
+        .fold(String::new(), |mut hex, byte| {
+            write!(hex, "{byte:02x}").expect("writing to a String cannot fail");
+            hex
+        })
 }
 
 /// Document-set entries in key order.

@@ -9,7 +9,7 @@ publish = false
 
 [dependencies]
 lpp-conformance-common = { path = "../common" }
-sha2 = "0.10"
+sha2 = "0.11"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 
