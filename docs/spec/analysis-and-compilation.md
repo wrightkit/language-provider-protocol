@@ -21,6 +21,8 @@ analyze every document in the set and MUST report all diagnostics found.
 }
 ```
 
+`locale` is OPTIONAL; see [Section 8.3](project-loading.md#83-locale).
+
 ### 9.2 Result
 
 ```json
@@ -68,6 +70,7 @@ document-supplied request that contains more than one document.
 }
 ```
 
+* `locale`: OPTIONAL; see [Section 8.3](project-loading.md#83-locale).
 * `acceptedArtifactFormats`: OPTIONAL, defined in LPP 1.4 and later. A non-empty
   array of artifact format id strings, ordered from most to least preferred.
   It states which formats the client can consume; see
