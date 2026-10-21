@@ -1,9 +1,3 @@
-//! Helpers shared by the conformance runner and the reference mock provider.
-//!
-//! The runner expands `${PROJECT_URI}` in fixtures and the mock provider
-//! resolves `entry` URIs back to paths; both sides must agree on the file-URI
-//! codec byte for byte.
-
 use std::path::{Path, PathBuf};
 
 /// `file:` URI for an absolute path, percent-encoding bytes outside the

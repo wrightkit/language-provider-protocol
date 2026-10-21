@@ -1,10 +1,3 @@
-//! `lpp-mock-provider`: the reference LPP provider for `x-demo-lang`.
-//!
-//! Layout: `server` owns session state and dispatch (the method table lives
-//! next to the handlers in `methods`), `project` resolves `entry` targets
-//! into document sets, `wire` holds the request param shapes, `rpc` builds
-//! response envelopes, and `puzzle` is the x-demo-lang implementation.
-
 mod methods;
 mod project;
 mod puzzle;
@@ -64,8 +57,6 @@ fn write_response(out: &mut impl Write, response: &Value) -> io::Result<()> {
     out.flush()
 }
 
-/// `--protocol-version <v>` pins the supported version; `--without a,b,c`
-/// disables capabilities (used by the capability-negotiation fixtures).
 fn parse_args() -> (String, HashSet<&'static str>) {
     let mut version = DEFAULT_PROTOCOL_VERSION.to_string();
     let mut disabled = HashSet::new();

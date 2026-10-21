@@ -1,10 +1,3 @@
-//! `lpp-conformance-runner`: replays LPP v1 fixtures against a provider
-//! binary. `scenario` owns the fixture schema and structural validation,
-//! `project_fixture` owns the materialized `projectFiles` tree and
-//! `${PROJECT_URI}` substitution, `matcher` owns the expected-response
-//! comparison including provider-owned leaves, and `session` owns the spawned
-//! provider exchange. Fixtures must stay deterministic and self-contained.
-
 mod matcher;
 mod project_fixture;
 mod scenario;
@@ -141,7 +134,6 @@ fn parse_args() -> Args {
 
 fn arg_value(iter: &mut impl Iterator<Item = String>, flag: &str) -> String {
     match iter.next() {
-        // A missing value must not silently swallow the next flag.
         Some(value) if !value.starts_with("--") => value,
         _ => usage_error(&format!("{flag} requires a value")),
     }

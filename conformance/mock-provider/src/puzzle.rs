@@ -1,8 +1,3 @@
-//! The `x-demo-lang` puzzle language: a document declares one equation puzzle
-//! (target, start, named arithmetic ops, and a solution applying ops in
-//! sequence). The language is deliberately unlike OPY and DEL so the mock
-//! provider cannot accidentally satisfy two-language assumptions in LPP.
-
 use serde::Serialize;
 
 mod artifact;
@@ -133,7 +128,6 @@ pub(crate) struct ParseOutput {
 }
 
 impl ParseOutput {
-    /// The puzzle when the document parsed without error diagnostics.
     pub(crate) fn into_puzzle(self) -> Option<Puzzle> {
         match self.puzzle {
             Some(puzzle) if !self.has_errors() => Some(puzzle),

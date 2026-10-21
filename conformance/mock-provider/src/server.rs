@@ -1,8 +1,3 @@
-//! Session state and JSON-RPC method dispatch.
-//!
-//! `METHODS` (defined next to the handlers in `methods.rs`) is the single
-//! table routing a method name to its capability gate and handler.
-
 use std::collections::HashSet;
 
 use serde_json::{Value, json};
@@ -11,7 +6,6 @@ use crate::methods::METHODS;
 use crate::rpc::{lpp_error, ok, parse_params, std_error};
 use crate::wire::InitParams;
 
-/// Protocol versions accepted by `--protocol-version`.
 pub(crate) const PROTOCOL_VERSIONS: [&str; 7] = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6"];
 pub(crate) const DEFAULT_PROTOCOL_VERSION: &str = PROTOCOL_VERSIONS[0];
 pub(crate) const LANGUAGE_ID: &str = "x-demo-lang";
@@ -19,8 +13,6 @@ pub(crate) const LANGUAGE_ID: &str = "x-demo-lang";
 const SERVER_NAME: &str = "lpp-mock-provider";
 const LANGUAGE_EXTENSIONS: [&str; 1] = ["xdl"];
 
-/// Capability names as they appear on the wire, each with the minimum
-/// protocol minor version that advertises it.
 const CAPABILITIES: &[(&str, u32)] = &[
     ("check", 0),
     ("compile", 0),
@@ -44,7 +36,6 @@ fn invalid_request() -> Value {
     std_error(Value::Null, -32600, "Invalid Request")
 }
 
-/// `invalidRequest`/`notInitialized` for any method called pre-`initialize`.
 fn not_initialized(id: &Value) -> Value {
     lpp_error(
         id.clone(),
@@ -54,7 +45,6 @@ fn not_initialized(id: &Value) -> Value {
     )
 }
 
-/// Mark `name` disabled for `--without`. Returns false for unknown names.
 pub(crate) fn disable_capability(disabled: &mut HashSet<&'static str>, name: &str) -> bool {
     match CAPABILITIES.iter().find(|(n, _)| *n == name) {
         Some(&(n, _)) => {
@@ -84,13 +74,10 @@ impl Server {
         }
     }
 
-    /// True when the negotiated protocol version is 1.`minor` or later.
     pub(crate) fn since(&self, minor: u32) -> bool {
         self.version_minor.is_some_and(|v| v >= minor)
     }
 
-    /// True when `capability` exists at the negotiated protocol version and
-    /// is not disabled via `--without`. Unknown names are never available.
     pub(crate) fn capability(&self, name: &str) -> bool {
         let Some(&(_, min)) = CAPABILITIES.iter().find(|(n, _)| *n == name) else {
             return false;
@@ -108,14 +95,12 @@ impl Server {
             .into()
     }
 
-    /// Handle one newline-delimited message and return the response envelope.
     pub(crate) fn handle_message(&mut self, line: &str) -> Value {
         let parsed: Value = match serde_json::from_str(line) {
             Ok(value) => value,
             Err(_) => return std_error(Value::Null, -32700, "Parse error"),
         };
         let Some(object) = parsed.as_object() else {
-            // Batches are arrays; both fail as Invalid Request.
             return invalid_request();
         };
         if object.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
@@ -126,11 +111,7 @@ impl Server {
         };
         let id = match object.get("id") {
             Some(id @ Value::String(_)) => id.clone(),
-            // Request ids are integers or strings (spec section 4); a
-            // fractional number is not an integer.
             Some(id @ Value::Number(_)) if id.is_i64() || id.is_u64() => id.clone(),
-            // No notifications in LPP v1: a message without an id (or with a
-            // null id) is a protocol violation.
             None | Some(Value::Null) => {
                 return lpp_error(
                     Value::Null,
@@ -139,11 +120,8 @@ impl Server {
                     "invalid request: LPP v1 defines no notifications",
                 );
             }
-            // Any other id shape (bool, float, array, object) is not a valid
-            // JSON-RPC request.
             Some(_) => return invalid_request(),
         };
-        // `params` is a REQUIRED object in every LPP v1 request.
         let params = match object.get("params") {
             Some(params @ Value::Object(_)) => params.clone(),
             _ => return std_error(id.clone(), -32602, "Invalid params"),

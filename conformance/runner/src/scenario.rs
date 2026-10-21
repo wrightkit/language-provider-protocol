@@ -1,6 +1,3 @@
-//! Scenario files: the fixture schema (`*.json` under `fixtures/v1/`) and the
-//! structural validation the runner performs before replaying anything.
-
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -16,8 +13,6 @@ pub(crate) struct Scenario {
     #[allow(dead_code)]
     pub description: Option<String>,
     pub scope: String,
-    /// Wraps `steps` in the standard initialize/shutdown handshake for the
-    /// given protocol version, spliced from `sessions/<version>.json`.
     #[serde(default)]
     pub session: Option<String>,
     #[serde(default)]
@@ -32,13 +27,10 @@ pub(crate) struct Scenario {
 #[derive(Deserialize)]
 #[serde(try_from = "StepWire")]
 pub(crate) struct Step {
-    /// The one request form the step sends.
     pub request: StepRequest,
     pub expect_response: Value,
 }
 
-/// A step's outbound payload: either a JSON-RPC `request` object or a
-/// `rawLine` sent verbatim — never both, never neither.
 pub(crate) enum StepRequest {
     Request(Value),
     RawLine(String),
@@ -70,9 +62,6 @@ impl TryFrom<StepWire> for Step {
     }
 }
 
-/// The literal handshake a `session` fixture inherits: the exact
-/// initialize/shutdown steps live in `sessions/<version>.json` next to the
-/// fixtures, keeping expected responses as data rather than runner logic.
 #[derive(Deserialize)]
 struct SessionTemplate {
     initialize: Step,
@@ -84,8 +73,6 @@ pub(crate) fn read_scenario(path: &Path) -> Result<Scenario, String> {
     let mut scenario: Scenario =
         serde_json::from_str(&text).map_err(|e| format!("fixture is not valid JSON: {e}"))?;
     if let Some(version) = &scenario.session {
-        // The handshake comes from the template; stepping it twice is a
-        // session-behavior test and must stay explicit.
         for (i, step) in scenario.steps.iter().enumerate() {
             let method = match &step.request {
                 StepRequest::Request(request) => request.get("method").and_then(Value::as_str),
@@ -110,9 +97,6 @@ pub(crate) fn read_scenario(path: &Path) -> Result<Scenario, String> {
     Ok(scenario)
 }
 
-/// Wire-envelope defaults so fixtures state only what varies: `jsonrpc` is
-/// `"2.0"` on both sides, and an absent `expectResponse.id` expects the
-/// request's id (null for `rawLine` steps).
 fn apply_envelope_defaults(steps: &mut [Step]) {
     for step in steps {
         if let StepRequest::Request(request) = &mut step.request {
@@ -177,10 +161,6 @@ fn validate_scenario(scenario: &Scenario) -> Result<(), String> {
     }
     for (i, step) in scenario.steps.iter().enumerate() {
         let response_id = step.expect_response.get("id");
-        // Normal requests: the response id echoes the request id, unless the
-        // scenario deliberately sends an id-less message (notification,
-        // batch), in which case the response id is null. Raw lines carry no
-        // id, so the expected response id must be null.
         let id_ok = match &step.request {
             StepRequest::Request(request) => match (request.get("id"), response_id) {
                 (Some(request_id), Some(response_id)) => request_id == response_id,
@@ -258,8 +238,6 @@ fn contains_project_uri(value: &Value) -> bool {
 mod tests {
     use super::*;
 
-    /// The schema rejects a step carrying both request forms — all shipped
-    /// fixtures are valid, so only these unit tests exercise the rule.
     #[test]
     fn step_rejects_request_and_raw_line_together() {
         let step = json!({

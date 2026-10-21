@@ -1,8 +1,3 @@
-//! Recursive-descent parser for `x-demo-lang`.
-//!
-//! Recovery is line-oriented: an unexpected token reports one diagnostic and
-//! skips to the next newline, so one malformed line does not cascade.
-
 use std::collections::HashSet;
 
 use super::lex::{Token, TokenKind, describe, tokenize};
@@ -17,9 +12,6 @@ pub(crate) fn parse_document(text: &str) -> ParseOutput {
         diagnostics: Vec::new(),
     };
     let puzzle = parse_top(&mut parser);
-    // Spec section 9.2: diagnostics are sorted by range.start. Diagnostics
-    // are pushed in analysis phases (body errors, then missing-section at the
-    // puzzle name, then semantic checks), so a stable sort is required.
     parser
         .diagnostics
         .sort_by_key(|d| (d.range.start.line, d.range.start.character));
@@ -62,7 +54,6 @@ impl Parser {
         }
     }
 
-    /// Report an unexpected end of input just past the last token.
     fn eof_error(&mut self, what: &str) {
         let at = self
             .tokens
@@ -72,19 +63,16 @@ impl Parser {
         self.error_at(at, format!("unexpected end of input: expected {what}"));
     }
 
-    /// Report a syntax error at `range` without consuming input.
     fn error_at(&mut self, range: Range, message: impl Into<String>) {
         self.diagnostics
             .push(diagnostic(range, "error", "x-demo/syntax", message.into()));
     }
 
-    /// Report a syntax error at `tok` and recover to the next line.
     fn error(&mut self, tok: &Token, message: impl Into<String>) {
         self.error_at(tok.range, message);
         self.recover_line();
     }
 
-    /// "unexpected {tok} in {context}" — idents print the bare word.
     fn unexpected(&mut self, tok: &Token, context: &str) {
         match &tok.kind {
             TokenKind::Ident(word) => {
@@ -94,8 +82,6 @@ impl Parser {
         }
     }
 
-    /// Consume an identifier, or report an error and recover. Returns `None`
-    /// silently at end of input.
     fn expect_ident(&mut self) -> Option<(String, Token)> {
         let tok = self.peek().cloned()?;
         let TokenKind::Ident(name) = &tok.kind else {
@@ -110,8 +96,6 @@ impl Parser {
         Some((name, tok))
     }
 
-    /// Consume a number, or report an error and recover. Returns `None`
-    /// silently at end of input.
     fn expect_number(&mut self, what: &str) -> Option<i64> {
         let tok = self.peek().cloned()?;
         match tok.kind {
@@ -130,8 +114,6 @@ impl Parser {
         }
     }
 
-    /// Consume `kind`, or report an error and recover. Returns `false`
-    /// silently at end of input.
     fn expect_punct(&mut self, kind: TokenKind, what: &str) -> bool {
         match self.peek().cloned() {
             Some(tok) if tok.kind == kind => {
@@ -146,9 +128,6 @@ impl Parser {
         }
     }
 
-    /// Consume the required `x` parameter name in an op declaration, or report
-    /// an error and recover. `expect_ident` has already recovered to the next
-    /// line on a wrong token; at end of input there is nothing to recover.
     fn expect_x(&mut self, what: &str) -> bool {
         match self.expect_ident() {
             Some((name, _)) if name == "x" => true,
@@ -354,7 +333,6 @@ fn parse_ops(parser: &mut Parser, puzzle: &mut Puzzle) -> bool {
     }
 }
 
-/// `name: x => x <op> <arg>`
 fn parse_op(parser: &mut Parser, puzzle: &mut Puzzle, name_tok: &Token) {
     let TokenKind::Ident(name) = &name_tok.kind else {
         return;

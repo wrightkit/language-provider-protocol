@@ -1,7 +1,3 @@
-//! Project loading: resolving an `entry` target (LPP 1.1 file, LPP 1.2
-//! directory) into the in-memory document set that `lpp/check` and
-//! `lpp/compile` consume.
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -12,9 +8,6 @@ use crate::rpc::HandlerError;
 use crate::server::{LANGUAGE_ID, Server};
 use crate::wire::{DocsParams, Document, ProjectEntry};
 
-/// Resolve the document set for a `lpp/check`/`lpp/compile`-style request:
-/// either the inline `documents` map or a project `entry` to load.
-/// Returns the set and the canonical entry URI when loaded from a project.
 pub(crate) fn documents_for_request(
     server: &Server,
     params: DocsParams,
@@ -50,15 +43,12 @@ enum Target {
     Directory,
 }
 
-/// Project loading tied to one request's `ProjectEntry`. The shared error
-/// constructors live here so call sites name only the reason and message.
 struct Loader<'a> {
     server: &'a Server,
     entry: &'a ProjectEntry,
 }
 
 impl Loader<'_> {
-    /// `invalidEntry`: the request's entry object failed validation.
     fn invalid(&self, reason: &str, message: impl Into<String>) -> HandlerError {
         HandlerError::lpp(
             "invalidEntry",
@@ -67,8 +57,6 @@ impl Loader<'_> {
         )
     }
 
-    /// `projectLoadFailed`: filesystem resolution failed. `uri` is the
-    /// concrete file URI when one is known.
     fn fail(&self, reason: &str, uri: Option<&str>, message: impl Into<String>) -> HandlerError {
         let mut details = json!({ "entryUri": self.entry.uri, "reason": reason });
         if let Some(uri) = uri {
@@ -171,9 +159,6 @@ impl Loader<'_> {
             )
         })?;
 
-        // The project is the `.xdl` files in the selected entry's directory.
-        // A failed directory entry fails the load rather than silently
-        // dropping a required source (spec section 8.1).
         let entries: Vec<_> = std::fs::read_dir(&root)
             .map_err(|error| {
                 self.fail(
@@ -197,8 +182,6 @@ impl Loader<'_> {
                 if path.extension().is_none_or(|ext| ext != "xdl") {
                     continue;
                 }
-                // A directory named `*.xdl` is not a source file; symlinks
-                // still resolve (or fail) through canonicalization below.
                 let is_dir = entry
                     .file_type()
                     .map_err(|error| {
@@ -219,8 +202,6 @@ impl Loader<'_> {
 
         let mut documents = HashMap::new();
         for path in paths {
-            // The failing file's URI is knowable before canonicalization;
-            // `details.uri` should name it (spec section 8.1).
             let unresolved_uri = path_to_file_uri(&path);
             let path = std::fs::canonicalize(&path).map_err(|error| {
                 self.fail(

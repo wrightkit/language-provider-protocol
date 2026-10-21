@@ -1,7 +1,3 @@
-//! Replaying one scenario against a spawned provider process: request lines
-//! go to stdin, response lines are compared verbatim after JSON parsing, and
-//! the process must exit with the expected status once stdin closes.
-
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
@@ -66,8 +62,6 @@ pub(crate) fn run_scenario(
                 ));
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
-                // stdout is closed, so no response can ever arrive; reap the
-                // provider immediately instead of waiting out the timeout.
                 let status = kill(&mut child);
                 return Err(format!(
                     "step {i}: provider closed stdout without responding (exit status {status:?})"
@@ -111,9 +105,6 @@ pub(crate) fn run_scenario(
             "expected exit code {expected_exit}, got {actual_exit}"
         ));
     }
-    // Output the provider emitted past the last step must surface. Give the
-    // reader a short grace period for already-buffered lines; a descendant
-    // can keep the pipe open, so the wait stays bounded.
     const DRAIN_GRACE: Duration = Duration::from_millis(500);
     let _ = done_rx.recv_timeout(DRAIN_GRACE);
     let extra: Vec<String> = response_rx.try_iter().collect();
@@ -136,8 +127,6 @@ fn step_request_line(step: &Step, project: Option<&ProjectFixture>) -> String {
             serde_json::to_string(&substitute_project_uri(request, project))
                 .expect("request serializes")
         }
-        // `${PROJECT_URI}` inside a raw line substitutes literally, matching
-        // the request-object path.
         StepRequest::RawLine(raw) => raw.replace(
             "${PROJECT_URI}",
             project.map_or("", |project| project.uri.as_str()),
@@ -145,8 +134,6 @@ fn step_request_line(step: &Step, project: Option<&ProjectFixture>) -> String {
     }
 }
 
-/// Poll for exit until `timeout`, then kill and reap. Returns the exit
-/// status, or a default when the child cannot be reaped.
 fn wait_exit(child: &mut Child, timeout: Duration) -> std::process::ExitStatus {
     let deadline = Instant::now() + timeout;
     loop {
@@ -162,7 +149,6 @@ fn wait_exit(child: &mut Child, timeout: Duration) -> std::process::ExitStatus {
     }
 }
 
-/// Kill the provider and report its final exit status.
 fn kill(child: &mut Child) -> std::process::ExitStatus {
     let _ = child.kill();
     child.wait().unwrap_or_default()
@@ -175,8 +161,6 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
 
-    /// Scratch dir for fake-provider scripts under the repo's ignored
-    /// `target/`; removed at test start and end so reruns stay clean.
     fn scratch(name: &str) -> PathBuf {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../target/runner-tests")
@@ -210,8 +194,6 @@ mod tests {
         }
     }
 
-    /// Run the script as `/bin/sh <script> <args…>` and assert the provider
-    /// pid recorded in the pidfile is reaped after the scenario fails.
     fn assert_provider_reaped(scratch_name: &str, script_body: &str) {
         let dir = scratch(scratch_name);
         let script = dir.join("provider.sh");
@@ -230,7 +212,6 @@ mod tests {
             .args(["-0", &pid])
             .status()
             .is_ok_and(|s| s.success());
-        // Clean up either way so a leaked sleeper does not linger.
         let _ = Command::new("kill").arg(&pid).status();
         fs::remove_dir_all(&dir).ok();
         assert!(!alive, "provider {pid} was not killed/reaped");
@@ -254,8 +235,6 @@ mod tests {
 
     #[test]
     fn exit_is_not_blocked_by_descendant_holding_stdout() {
-        // The provider answers and exits while a spawned descendant keeps
-        // stdout open; the runner must not block joining the reader thread.
         let dir = scratch("grandchild");
         let script = dir.join("provider.sh");
         let pidfile = dir.join("pid");
@@ -302,9 +281,6 @@ mod tests {
 
     #[test]
     fn raw_line_substitutes_project_uri() {
-        // `${PROJECT_URI}` inside a rawLine must be replaced like it is in
-        // request objects; the provider only answers when no placeholder
-        // survives on the wire.
         let dir = scratch("rawline");
         let script = dir.join("provider.sh");
         fs::write(

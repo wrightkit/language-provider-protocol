@@ -1,8 +1,3 @@
-//! Session-runtime project fixtures: materializing a scenario's
-//! `projectFiles` into an isolated directory and substituting its URI for
-//! `${PROJECT_URI}` in request and expected-response JSON. Consumed only by
-//! `session`; the schema-side rules live in `scenario`.
-
 use std::path::PathBuf;
 
 use lpp_conformance_common::path_to_file_uri;
@@ -10,7 +5,6 @@ use serde_json::Value;
 
 use crate::scenario::{Scenario, validate_project_path};
 
-/// A materialized `projectFiles` tree; removed when dropped.
 pub(crate) struct ProjectFixture {
     directory: PathBuf,
     pub uri: String,
@@ -22,8 +16,6 @@ impl Drop for ProjectFixture {
     }
 }
 
-/// Write `projectFiles` into an isolated directory under `target/`.
-/// `Ok(None)` when the scenario has no project files.
 pub(crate) fn materialize_project(
     scenario: &Scenario,
     scenario_index: usize,
@@ -38,7 +30,6 @@ pub(crate) fn materialize_project(
     std::fs::create_dir(&directory)
         .map_err(|error| format!("cannot create project fixture directory: {error}"))?;
 
-    // From here on the fixture owns the directory; any error cleans it up.
     let mut fixture = ProjectFixture {
         directory,
         uri: String::new(),
@@ -60,7 +51,6 @@ pub(crate) fn materialize_project(
     Ok(Some(fixture))
 }
 
-/// Recursively replace `${PROJECT_URI}` in fixture JSON.
 pub(crate) fn substitute_project_uri(value: &Value, project: Option<&ProjectFixture>) -> Value {
     match value {
         Value::String(text) => {
