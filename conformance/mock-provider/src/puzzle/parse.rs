@@ -12,13 +12,15 @@ pub(crate) fn parse_document(text: &str) -> ParseOutput {
         diagnostics: Vec::new(),
     };
     let puzzle = parse_top(&mut parser);
-    parser
-        .diagnostics
-        .sort_by_key(|d| (d.range.start.line, d.range.start.character));
+    sort_diagnostics_by_range_start(&mut parser.diagnostics);
     ParseOutput {
         puzzle,
         diagnostics: parser.diagnostics,
     }
+}
+
+fn sort_diagnostics_by_range_start(diagnostics: &mut [Diagnostic]) {
+    diagnostics.sort_by_key(|d| (d.range.start.line, d.range.start.character));
 }
 
 struct Parser {
