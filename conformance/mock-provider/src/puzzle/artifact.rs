@@ -1,7 +1,3 @@
-//! Artifact formats produced by `lpp/compile` and consumed by
-//! `lpp/reconstruct`. Artifact payloads are opaque to LPP; only the mock
-//! provider interprets them.
-
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::fmt::Write;
@@ -9,7 +5,6 @@ use std::fmt::Write;
 use super::Puzzle;
 
 pub(crate) const ARTIFACT_FORMAT: &str = "x-demo/puzzle-eval-v1";
-/// Compile-only format: `lpp/reconstruct` does not support it.
 pub(crate) const SUMMARY_ARTIFACT_FORMAT: &str = "x-demo/puzzle-summary-v1";
 pub(crate) const COMPILE_ARTIFACT_FORMATS: [&str; 2] = [ARTIFACT_FORMAT, SUMMARY_ARTIFACT_FORMAT];
 
@@ -48,16 +43,12 @@ struct SheetOp {
     arg: i64,
 }
 
-/// The `x-demo-lang` identifier grammar: `[A-Za-z_][A-Za-z0-9_]*`.
 fn is_ident(name: &str) -> bool {
     let mut chars = name.chars();
     matches!(chars.next(), Some(c) if c.is_ascii_alphabetic() || c == '_')
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-/// Canonical source text regenerated from a puzzle evaluation sheet.
-/// Names are emitted verbatim, so every one must be a valid identifier or
-/// the output would not parse (or would carry injected syntax).
 pub(crate) fn reconstruct_source(content: &str) -> Option<String> {
     let sheet: Sheet = serde_json::from_str(content).ok()?;
     if !is_ident(&sheet.name)

@@ -1,6 +1,3 @@
-//! CLI-level regressions: flag values must not swallow the next flag, and
-//! fixture discovery must ignore non-files.
-
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -8,8 +5,6 @@ fn runner() -> Command {
     Command::new(env!("CARGO_BIN_EXE_lpp-conformance-runner"))
 }
 
-/// Scratch dir under the repo's ignored `target/`; removed on entry so
-/// reruns stay clean.
 fn scratch(name: &str) -> PathBuf {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../target/cli-tests")
@@ -32,8 +27,6 @@ fn flag_without_value_is_an_error_not_the_next_flag() {
 
 #[test]
 fn fixtures_dir_skips_json_directories() {
-    // A directory named `*.json` is not a fixture; discovery must not feed
-    // it to the scenario parser.
     let dir = scratch("fixtures");
     std::fs::write(
         dir.join("ok.json"),

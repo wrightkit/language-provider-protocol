@@ -1,6 +1,3 @@
-//! Wire parameter shapes for the LPP v1 methods the mock provider serves.
-//! Field names follow the spec's camelCase JSON keys via serde.
-
 use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
@@ -40,7 +37,6 @@ pub(crate) struct ProjectEntry {
     pub kind: Option<String>,
 }
 
-/// `documents`-vs-`entry` params shared by `lpp/check` and `lpp/compile`.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DocsParams {
@@ -48,7 +44,6 @@ pub(crate) struct DocsParams {
     pub entry: Option<ProjectEntry>,
     #[allow(dead_code)]
     pub project_root: Option<String>,
-    /// Validated as a string; the demo language has no locale-dependent text.
     #[allow(dead_code)]
     pub locale: Option<String>,
 }
@@ -92,8 +87,6 @@ pub(crate) struct RenameParams {
     pub project_root: Option<String>,
 }
 
-/// `within` selector for `lpp/lookup`: names the scope whose children the
-/// result lists. `kind` is validated against the closed set in the handler.
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LookupWithin {
@@ -107,17 +100,12 @@ pub(crate) struct LookupParams {
     pub language_id: String,
     pub query: Option<String>,
     pub kind: Option<String>,
-    /// Echoed in `lookup.unknownWithin` refusal details.
     pub within: Option<LookupWithin>,
-    /// Accepted for forward compatibility; the demo language only serves its
-    /// default locale.
     #[allow(dead_code)]
     pub locale: Option<String>,
     pub limit: Option<u32>,
 }
 
-/// `lpp/resolveIds` params; element types are enforced by deserialization
-/// and the total bound by the handler.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ResolveIdsParams {

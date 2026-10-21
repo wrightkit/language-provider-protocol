@@ -1,6 +1,3 @@
-//! Stdio-framing regressions: malformed bytes on the wire must not crash the
-//! provider, and EOF must end the session cleanly.
-
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -8,13 +5,10 @@ fn provider() -> Command {
     Command::new(env!("CARGO_BIN_EXE_lpp-mock-provider"))
 }
 
-/// Feed `input` to a fresh provider, then close stdin and collect the
-/// response messages.
 fn run_session(input: &[u8]) -> Vec<serde_json::Value> {
     run_session_args(&[], input)
 }
 
-/// `run_session` with extra provider command-line arguments.
 fn run_session_args(args: &[&str], input: &[u8]) -> Vec<serde_json::Value> {
     let mut child = provider()
         .args(args)
@@ -50,7 +44,6 @@ fn non_utf8_line_gets_parse_error_and_session_continues() {
     {
         let mut stdin = child.stdin.take().expect("stdin");
         stdin.write_all(b"\xff\n").expect("write invalid bytes");
-        // A well-formed request after the bad line: the session must survive.
         stdin
             .write_all(
                 br#"{"jsonrpc":"2.0","id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.0"}}"#
@@ -75,12 +68,9 @@ fn non_utf8_line_gets_parse_error_and_session_continues() {
 
 #[test]
 fn request_shape_strictness() {
-    // Spec section 4: `id` is an integer or string; `params` is REQUIRED.
     let requests = [
-        // Fractional and boolean ids are not integer/string ids.
         r#"{"jsonrpc":"2.0","id":1.5,"method":"lpp/initialize","params":{"protocolVersion":"1.0"}}"#,
         r#"{"jsonrpc":"2.0","id":true,"method":"lpp/initialize","params":{"protocolVersion":"1.0"}}"#,
-        // Missing `params`, and a non-object `params`.
         r#"{"jsonrpc":"2.0","id":3,"method":"lpp/initialize"}"#,
         r#"{"jsonrpc":"2.0","id":4,"method":"lpp/initialize","params":[]}"#,
     ];
@@ -93,10 +83,6 @@ fn request_shape_strictness() {
 
 #[test]
 fn rename_refuses_when_a_document_has_errors() {
-    // A document whose parse produced error diagnostics cannot be renamed
-    // atomically — spec section 15.2 requires covering every reference in
-    // every received document — so the provider must refuse rather than
-    // emit partial edits.
     let clean = "puzzle c {\n  target = 2\n  start = 1\n  ops {\n    a: x => x + 1\n  }\n  solution = [ a ]\n}";
     let dup = "puzzle p {\n  target = 1\n  start = 0\n  ops {\n    a: x => x + 1\n    a: x => x + 2\n  }\n  solution = [ a ]\n}";
     let request = format!(
@@ -112,8 +98,6 @@ fn rename_refuses_when_a_document_has_errors() {
     );
 }
 
-/// Scratch directory under the repo's ignored `target/` for project-loader
-/// tests. Removed at test start and end so reruns stay clean.
 fn project_dir(name: &str) -> std::path::PathBuf {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../target/project-tests")
@@ -133,7 +117,6 @@ fn check_directory(root: &std::path::Path) -> serde_json::Value {
         r#"{{"jsonrpc":"2.0","id":2,"method":"lpp/check","params":{{"entry":{{"uri":"file://{}","languageId":"x-demo-lang","version":1,"kind":"directory"}}}}}}"#,
         root.display()
     );
-    // Directory entries need LPP 1.2+, so pin the provider's version.
     let responses = run_session_args(
         &["--protocol-version", "1.6"],
         format!("{init}\n{request}\n").as_bytes(),
@@ -143,8 +126,6 @@ fn check_directory(root: &std::path::Path) -> serde_json::Value {
 
 #[test]
 fn project_loader_ignores_xdl_directories() {
-    // A directory named `*.xdl` is not a source file; loading must skip it
-    // rather than fail the whole request trying to read it.
     let root = project_dir("xdl-dir");
     std::fs::write(root.join("entry.xdl"), VALID).unwrap();
     std::fs::create_dir(root.join("junk.xdl")).unwrap();
@@ -159,8 +140,6 @@ fn project_loader_ignores_xdl_directories() {
 #[cfg(unix)]
 #[test]
 fn project_load_failure_names_the_broken_source_uri() {
-    // A dangling symlink canonicalizes to nothing: the failure's
-    // `details.uri` must name the file that could not be loaded.
     let root = project_dir("dangling");
     std::fs::write(root.join("entry.xdl"), VALID).unwrap();
     std::os::unix::fs::symlink("missing-target.xdl", root.join("broken.xdl")).unwrap();

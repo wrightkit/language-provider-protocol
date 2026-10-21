@@ -1,27 +1,18 @@
-//! JSON-RPC 2.0 response envelopes and the handler error channel.
-//!
-//! LPP errors travel in `error.data.lpp = { kind, details }` with code
-//! `-32000`; standard JSON-RPC errors carry only `code` and `message`.
-
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
-/// Errors a method handler can raise: either an LPP-typed error
-/// (`kind`/`details` under `error.data.lpp`) or a standard JSON-RPC error.
 pub(crate) enum HandlerError {
     Lpp(&'static str, Value, String),
     Std(i64, &'static str),
 }
 
 impl HandlerError {
-    /// An LPP `refusal` error carrying `refusalCode` in its details.
     pub(crate) fn refusal(code: &'static str, details: Value, message: impl Into<String>) -> Self {
         let mut details = details;
         details["refusalCode"] = json!(code);
         Self::Lpp("refusal", details, message.into())
     }
 
-    /// An LPP-typed error with `kind`/`details`.
     pub(crate) fn lpp(kind: &'static str, details: Value, message: impl Into<String>) -> Self {
         Self::Lpp(kind, details, message.into())
     }

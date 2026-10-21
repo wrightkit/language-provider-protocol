@@ -1,11 +1,3 @@
-//! `lpp/*` method handlers and the `METHODS` dispatch table.
-//!
-//! Handlers share three pieces of plumbing: `documents_for_request` resolves
-//! the document set (inline `documents` or a loaded `entry` project),
-//! `parsed_set` checks and parses it in URI order, and `symbol_at_position`
-//! resolves the document/position/symbol preamble that definition,
-//! references, and rename share.
-
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
@@ -25,15 +17,12 @@ use crate::wire::{
     RenameParams, ResolveIdsParams, ValidateEditsParams,
 };
 
-/// A dispatchable `lpp/*` method: wire name, gating capability, handler.
 pub(crate) struct Method {
     pub name: &'static str,
     pub capability: &'static str,
     pub handler: fn(&Server, Value) -> Result<Value, HandlerError>,
 }
 
-/// Every `lpp/*` request method. Dispatch, capability gating, and the
-/// `Method not found` fallback all route through this table.
 pub(crate) const METHODS: &[Method] = &[
     Method {
         name: "lpp/check",
@@ -259,9 +248,6 @@ impl Server {
         let edits: Vec<Value> = sorted_entries(&params.documents)
             .into_iter()
             .map(|(key, doc)| {
-                // §15.2: every reference in every received document must be
-                // covered, so a document that did not parse cleanly makes the
-                // rename unsafe — refuse instead of emitting partial edits.
                 let Some(puzzle) = parse_document(&doc.text).into_puzzle() else {
                     return Err(HandlerError::lpp(
                         "invalidDocument",
@@ -387,15 +373,10 @@ impl Server {
     }
 }
 
-/// The most ids (calls plus enum members, duplicates counted) one
-/// `lpp/resolveIds` request may carry.
 const MAX_RESOLVE_IDS: usize = 1024;
 
-/// The provider-side bound applied when a request omits `limit`.
 const DEFAULT_LOOKUP_LIMIT: u32 = 20;
 
-/// Reads `acceptedArtifactFormats` from `lpp/compile` params. Valid only
-/// in LPP 1.4-or-later sessions, as a non-empty array of strings.
 fn accepted_artifact_formats(
     server: &Server,
     params: &Value,
@@ -415,8 +396,6 @@ fn accepted_artifact_formats(
 fn select_artifact_format(accepted: Option<Vec<String>>) -> Result<&'static str, HandlerError> {
     match accepted {
         None => Ok(ARTIFACT_FORMAT),
-        // The client's list is in preference order: the first accepted format
-        // we support wins.
         Some(accepted) => accepted
             .iter()
             .find_map(|a| {
@@ -446,14 +425,12 @@ fn sha256_hex(text: &str) -> String {
         })
 }
 
-/// Document-set entries in key order.
 fn sorted_entries(map: &HashMap<String, Document>) -> Vec<(&String, &Document)> {
     let mut entries: Vec<(&String, &Document)> = map.iter().collect();
     entries.sort_by(|a, b| a.0.cmp(b.0));
     entries
 }
 
-/// Documents in document-set key order.
 fn sorted_docs(map: &HashMap<String, Document>) -> Vec<&Document> {
     sorted_entries(map)
         .into_iter()
@@ -461,7 +438,6 @@ fn sorted_docs(map: &HashMap<String, Document>) -> Vec<&Document> {
         .collect()
 }
 
-/// Check and parse every document in document-set key order.
 fn parsed_set(
     map: &HashMap<String, Document>,
 ) -> Result<Vec<(&Document, ParseOutput)>, HandlerError> {
@@ -495,8 +471,6 @@ fn check_document(doc: &Document) -> Result<(), HandlerError> {
     Ok(())
 }
 
-/// `{ uri, version, <key>: <value> }` — the per-document view shape shared by
-/// check, compile, and symbols.
 fn document_view(doc: &Document, key: &str, value: Value) -> Value {
     let mut view = json!({ "uri": doc.uri, "version": doc.version });
     view[key] = value;
@@ -507,8 +481,6 @@ fn location_json(uri: &str, range: Range) -> Value {
     json!({ "uri": uri, "range": range })
 }
 
-/// The shared definition/references/rename preamble: document checks, then
-/// the symbol under `position`, or the method's `noSymbolAtPosition` refusal.
 fn symbol_at_position(
     doc: &Document,
     position: Position,

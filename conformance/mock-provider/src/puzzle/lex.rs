@@ -1,9 +1,3 @@
-//! Tokenizer for `x-demo-lang`.
-//!
-//! `name: x => x * 2` inside an `ops { }` block declares an op; a `solution =
-//! [ a, b ]` list applies ops in sequence. Whitespace separates tokens; only
-//! newlines are significant.
-
 use super::text::SourceText;
 use super::{OpKind, Range};
 
@@ -18,21 +12,17 @@ pub(super) enum TokenKind {
     Colon,
     Comma,
     Eq,
-    Arrow, // =>
+    Arrow,
     Star,
     Plus,
     Minus,
     Slash,
     Newline,
-    /// A character outside the token grammar. Carries the char so diagnostics
-    /// can name it; the parser never accepts it as an identifier.
     Unknown(char),
-    /// An integer literal outside the i64 range.
     BadNumber,
 }
 
 impl TokenKind {
-    /// The arithmetic operator an op body applies to `x`, if this token is one.
     pub(super) fn as_op(&self) -> Option<OpKind> {
         Some(match self {
             TokenKind::Star => OpKind::Mul,
@@ -47,7 +37,6 @@ impl TokenKind {
 #[derive(Debug, Clone)]
 pub(super) struct Token {
     pub kind: TokenKind,
-    /// LPP range covering the token's byte offsets.
     pub range: Range,
 }
 
@@ -113,8 +102,6 @@ pub(super) fn tokenize(src: &SourceText<'_>, text: &str) -> Vec<Token> {
                     kind.clone()
                 }
                 None => {
-                    // Consume the whole character so token ranges stay on
-                    // UTF-8 boundaries; `SourceText` positions slice `text`.
                     let ch = text[i..].chars().next().expect("in-bounds byte");
                     i += ch.len_utf8();
                     TokenKind::Unknown(ch)
@@ -135,12 +122,9 @@ fn read_number(text: &str, i: usize) -> (Option<i64>, usize) {
     while end < bytes.len() && bytes[end].is_ascii_digit() {
         end += 1;
     }
-    // Parse the signed slice so -9223372036854775808 (i64::MIN) stays
-    // representable; out-of-range literals surface as `None`.
     (text[i..end].parse::<i64>().ok(), end)
 }
 
-/// Human-readable token description for parse diagnostics.
 pub(super) fn describe(tok: &Token) -> String {
     match &tok.kind {
         TokenKind::Ident(name) => format!("'{name}'"),

@@ -1,25 +1,5 @@
-//! Expected-vs-actual response comparison.
-//!
-//! The fixture DSL marks leaves the spec declares provider-supplied as
-//! `{ "$provider": "<kind>" }`. A marked leaf is asserted by its contract
-//! shape instead of a literal value, so providers other than the reference
-//! mock can satisfy protocol-scope scenarios. Unmarked leaves keep verbatim
-//! JSON equality.
-//!
-//! The kinds mirror spec-declared provider-supplied positions:
-//!
-//! * `boolean` — a `capabilities` value; the key set in the fixture stays the
-//!   normative required-field assertion.
-//! * `languageList` — the `languages` array: non-empty, each entry exactly
-//!   `{ "id": <non-empty string>, "extensions": [<string>] }`.
-//! * `nonEmptyString` — provider prose or identity: `serverInfo` fields,
-//!   error `message`, `refusalCode`, provider-defined `reason`.
-//! * `protocolVersions` — `supportedProtocolVersions`: a non-empty array of
-//!   `MAJOR.MINOR` strings.
-
 use serde_json::Value;
 
-/// The provider-leaf kinds the fixture DSL accepts.
 const KINDS: &[&str] = &[
     "boolean",
     "languageList",
@@ -27,11 +7,8 @@ const KINDS: &[&str] = &[
     "protocolVersions",
 ];
 
-/// The `capabilities` object inside an `lpp/initialize` result.
 const CAPABILITIES_PATH: &str = "$.result.capabilities";
 
-/// Capability ids in introduction order. Per §7.3 the set is closed for each
-/// LPP minor version: ids are added only through a new protocol version.
 const CAPABILITY_IDS: &[&str] = &[
     "check",
     "compile",
@@ -47,7 +24,6 @@ const CAPABILITY_IDS: &[&str] = &[
     "resolveIds",
 ];
 
-/// The capability ids a negotiated protocol version declares.
 fn declared_capability_ids(root: &Value) -> Option<&'static [&'static str]> {
     let count = match root.pointer("/result/protocolVersion")?.as_str()? {
         "1.0" => 8,
@@ -60,16 +36,10 @@ fn declared_capability_ids(root: &Value) -> Option<&'static [&'static str]> {
     Some(&CAPABILITY_IDS[..count])
 }
 
-/// The `data.lpp.kind` of an expected error response.
 fn expected_error_kind(root: &Value) -> Option<&str> {
     root.pointer("/error/data/lpp/kind")?.as_str()
 }
 
-/// Whether `{ "$provider": kind }` may appear at `path` inside an expected
-/// response, per the §20.1 whitelist of spec-declared provider-supplied
-/// positions. `root` is the whole `expectResponse`, so positions whose
-/// legality depends on sibling fields (`data.lpp.kind`, the negotiated
-/// `protocolVersion`) can be checked.
 fn marker_position_legal(path: &str, kind: &str, root: &Value) -> bool {
     match path {
         "$.result.serverInfo.name" | "$.result.serverInfo.version" => kind == "nonEmptyString",
@@ -82,8 +52,6 @@ fn marker_position_legal(path: &str, kind: &str, root: &Value) -> bool {
         "$.error.data.lpp.details.refusalCode" => {
             kind == "nonEmptyString" && expected_error_kind(root) == Some("refusal")
         }
-        // `reason` is provider-defined only for the kinds whose details the
-        // spec does not enumerate; `invalidRequest.reason` is a closed set.
         "$.error.data.lpp.details.reason" => {
             kind == "nonEmptyString"
                 && matches!(
@@ -109,7 +77,6 @@ fn marker_position_legal(path: &str, kind: &str, root: &Value) -> bool {
     }
 }
 
-/// `Some(kind)` when `expected` is a well-formed provider leaf marker.
 fn marker_kind(expected: &Value) -> Option<&str> {
     expected
         .as_object()
@@ -119,11 +86,6 @@ fn marker_kind(expected: &Value) -> Option<&str> {
         .filter(|kind| KINDS.contains(kind))
 }
 
-/// Validates every `$provider` marker inside a fixture value. Markers are
-/// legal only in expected responses, so requests are checked with
-/// `allow_markers: false`. A marker's legality also depends on where it sits:
-/// `value` doubles as the response root so marker paths can be checked
-/// against the §20.1 whitelist.
 pub(crate) fn validate_leaves(value: &Value, allow_markers: bool) -> Result<(), String> {
     validate_at(value, value, "$", allow_markers)
 }
@@ -162,10 +124,6 @@ fn validate_at(root: &Value, value: &Value, path: &str, allow_markers: bool) -> 
     }
 }
 
-/// A `capabilities` object that carries markers must mark the full declared
-/// capability set for the negotiated version: every value a `boolean` marker,
-/// every key a declared id, and no declared id missing. Verbatim capability
-/// maps (adapter-specific `providerArgs` scenarios) are unaffected.
 fn validate_capability_object(root: &Value, value: &Value) -> Result<(), String> {
     let Some(object) = value.as_object() else {
         return Ok(());
@@ -196,8 +154,6 @@ fn validate_capability_object(root: &Value, value: &Value) -> Result<(), String>
     Ok(())
 }
 
-/// Recursive expected-vs-actual comparison honoring provider-leaf markers.
-/// On mismatch returns the failing path and what differed.
 pub(crate) fn matches(expected: &Value, actual: &Value) -> Result<(), String> {
     match_at(expected, actual, "$")
 }
@@ -208,11 +164,6 @@ fn match_at(expected: &Value, actual: &Value, path: &str) -> Result<(), String> 
     }
     match (expected, actual) {
         (Value::Object(expected), Value::Object(actual)) => {
-            // §7.3: a provider may advertise any capability subset — an absent
-            // id means not offered, equivalent to `false`. The exemption only
-            // applies to a fully marker-checked capabilities object; a
-            // verbatim map (a `providerArgs` scenario asserting an explicit
-            // negotiated map, false keys included) keeps exact key matching.
             let subset_mode = path == CAPABILITIES_PATH
                 && expected.values().all(|value| marker_kind(value).is_some());
             for (key, expected_value) in expected {
@@ -266,9 +217,6 @@ fn check_kind(kind: &str, actual: &Value) -> Result<(), String> {
     }
 }
 
-/// `languages`: a non-empty array of `{ id, extensions }` entries, where `id`
-/// is a non-empty string and `extensions` a (possibly empty) array of file
-/// extensions written without a leading dot and in lowercase (§7.2).
 fn is_language_list(actual: &Value) -> bool {
     let Some(entries) = actual.as_array() else {
         return false;
@@ -295,7 +243,6 @@ fn is_extension(ext: &str) -> bool {
     !ext.is_empty() && !ext.starts_with('.') && !ext.chars().any(char::is_uppercase)
 }
 
-/// `supportedProtocolVersions`: a non-empty array of `MAJOR.MINOR` strings.
 fn is_version_list(actual: &Value) -> bool {
     let Some(versions) = actual.as_array() else {
         return false;
@@ -356,7 +303,6 @@ mod tests {
             ("languageList", json!([])),
             ("languageList", json!([{ "id": "opy" }])),
             ("languageList", json!([{ "id": "", "extensions": [] }])),
-            // §7.2: extensions are lowercase, without a leading dot.
             (
                 "languageList",
                 json!([{ "id": "opy", "extensions": [".OPY"] }]),
@@ -404,7 +350,6 @@ mod tests {
     #[test]
     fn capabilities_may_advertise_a_subset() {
         let expected = json!({"result": {"capabilities": {"check": {"$provider": "boolean"}, "lookup": {"$provider": "boolean"}}}});
-        // Per §7.3 absent means not advertised; advertised values are checked.
         assert!(matches(&expected, &json!({"result": {"capabilities": {}}})).is_ok());
         assert!(
             matches(
@@ -432,8 +377,6 @@ mod tests {
 
     #[test]
     fn verbatim_capability_map_keeps_exact_keys() {
-        // A `providerArgs` scenario asserting `reconstruct: false` must not
-        // pass when the provider omits `reconstruct` entirely.
         let expected = json!({"result": {"capabilities": {"check": true, "reconstruct": false}}});
         assert!(
             matches(
@@ -480,17 +423,14 @@ mod tests {
     #[test]
     fn validate_leaves_enforces_marker_form_and_position() {
         assert!(validate_leaves(&init_result(), true).is_ok());
-        // Marker form.
         assert!(validate_leaves(&json!({"result": {"protocolVersion": "1.5", "capabilities": {"check": {"$provider": "unknown"}}}}), true).is_err());
         assert!(validate_leaves(&json!({"$provider": "boolean", "x": 1}), true).is_err());
         assert!(validate_leaves(&json!({"$provider": "boolean"}), false).is_err());
-        // Plain objects without the key are never markers.
         assert!(validate_leaves(&json!({"provider": "boolean"}), false).is_ok());
     }
 
     #[test]
     fn markers_reject_contract_owned_positions() {
-        // Marker on the root or a contract-owned leaf.
         for expected in [
             json!({"$provider": "nonEmptyString"}),
             json!({"result": {"protocolVersion": {"$provider": "nonEmptyString"}}}),
@@ -516,20 +456,16 @@ mod tests {
 
     #[test]
     fn details_markers_follow_the_error_kind() {
-        // `reason` is provider-defined under `invalidDocument` ...
         let expected = json!({"error": {"data": {"lpp": {
             "kind": "invalidDocument",
             "details": {"reason": {"$provider": "nonEmptyString"}}
         }}}});
         assert!(validate_leaves(&expected, true).is_ok());
-        // ... but a closed set under `invalidRequest`.
         let expected = json!({"error": {"data": {"lpp": {
             "kind": "invalidRequest",
             "details": {"reason": {"$provider": "nonEmptyString"}}
         }}}});
         assert!(validate_leaves(&expected, true).is_err());
-        // `refusalCode` only under `refusal`; `supportedProtocolVersions` only
-        // under `protocolVersionMismatch`.
         let expected = json!({"error": {"data": {"lpp": {
             "kind": "invalidRequest",
             "details": {"refusalCode": {"$provider": "nonEmptyString"}}
@@ -545,24 +481,20 @@ mod tests {
     #[test]
     fn marked_capabilities_cover_the_declared_set() {
         let mut expected = init_result();
-        // A declared id left unmarked weakens the closed-set check.
         expected["result"]["capabilities"]
             .as_object_mut()
             .unwrap()
             .remove("lookup");
         assert!(validate_leaves(&expected, true).is_err());
-        // An undeclared id is not a provider-supplied position.
         let mut expected = init_result();
         expected["result"]["capabilities"]
             .as_object_mut()
             .unwrap()
             .insert("custom".into(), json!({"$provider": "boolean"}));
         assert!(validate_leaves(&expected, true).is_err());
-        // Markers cannot mix with verbatim capability values.
         let mut expected = init_result();
         expected["result"]["capabilities"]["check"] = json!(true);
         assert!(validate_leaves(&expected, true).is_err());
-        // The declared set follows the negotiated version.
         let mut expected = init_result();
         expected["result"]["protocolVersion"] = json!("1.0");
         for key in ["projectLoading", "sourceIdentity", "lookup"] {

@@ -1,14 +1,5 @@
-//! The `x-demo-lang` name vocabulary served by `lpp/lookup`.
-//!
-//! The catalog is fixed for a provider version: the section keywords
-//! (`puzzle`, `ops`, `solution`), the four arithmetic operators and their
-//! enum domain, and the `target`/`start` settings. List order is the
-//! language's canonical order and is also the tie-break order for ranked
-//! results.
-
 use serde_json::{Value, json};
 
-/// A lookup scope: the full catalog or the children of one `within` selector.
 pub(crate) enum LookupScope {
     All,
     Callable(String),
@@ -16,9 +7,6 @@ pub(crate) enum LookupScope {
     Settings(String),
 }
 
-/// Ranked `entries` for an `lpp/lookup` request. Returns `None` when `scope`
-/// names a `within` selector the language does not know; the caller turns
-/// that into a `lookup.unknownWithin` refusal.
 pub(crate) fn lookup(
     query: &str,
     kind: Option<&str>,
@@ -39,8 +27,6 @@ pub(crate) fn lookup(
     ))
 }
 
-/// Keep `kind` matches, drop non-matches for `query`, order by match tier
-/// then catalog order (the sort is stable), and cap at `limit` entries.
 fn rank(entries: Vec<Value>, query: &str, kind: Option<&str>, limit: usize) -> Vec<Value> {
     let mut scored: Vec<(u8, Value)> = entries
         .into_iter()
@@ -52,9 +38,6 @@ fn rank(entries: Vec<Value>, query: &str, kind: Option<&str>, limit: usize) -> V
     scored.into_iter().map(|(_, e)| e).collect()
 }
 
-/// Match tier: 0 exact, 1 prefix, 2 substring; `None` = no match. An empty
-/// query matches everything at tier 0, so an unconstrained result keeps the
-/// scope's canonical order.
 fn score(entry: &Value, query: &str) -> Option<u8> {
     if query.is_empty() {
         return Some(0);
@@ -101,8 +84,6 @@ fn keyword(name: &str) -> Value {
     })
 }
 
-/// An arithmetic operator: `x <symbol> <arg>` inside an op declaration, so it
-/// is callable on an `integer` receiver with one required `arg` parameter.
 fn operator(name: &str, symbol: &str) -> Value {
     json!({
         "identity": format!("x-demo:operator/{name}"),
@@ -118,7 +99,6 @@ fn operator(name: &str, symbol: &str) -> Value {
     })
 }
 
-/// The enum domain of arithmetic operators op bodies choose from.
 fn operator_domain() -> Value {
     json!({
         "identity": "x-demo:enum/operator",
@@ -132,7 +112,6 @@ fn operator_domain() -> Value {
     })
 }
 
-/// A required `name = <integer>` assignment in the puzzle body.
 fn setting(name: &str) -> Value {
     json!({
         "identity": format!("x-demo:setting/{name}"),
@@ -143,8 +122,6 @@ fn setting(name: &str) -> Value {
     })
 }
 
-/// One entry per parameter of the callable at `identity`, in call order.
-/// `None` when `identity` names no catalog callable.
 fn callable_params(identity: &str) -> Option<Vec<Value>> {
     let parameters =
         catalog().into_iter().find(|e| e["identity"] == identity)?["callable"]["parameters"]
@@ -171,8 +148,6 @@ fn callable_params(identity: &str) -> Option<Vec<Value>> {
     )
 }
 
-/// The member spellings of the enum domain at `identity`, in domain order.
-/// `None` when `identity` names no entry that defines an enum domain.
 fn enum_members(identity: &str) -> Option<Vec<Value>> {
     let members = catalog()
         .into_iter()
@@ -195,8 +170,6 @@ fn enum_members(identity: &str) -> Option<Vec<Value>> {
     )
 }
 
-/// Entries directly below a settings path prefix. `x-demo-lang` settings are
-/// a flat namespace, so only the empty prefix names a scope.
 fn settings_children(prefix: &str) -> Option<Vec<Value>> {
     if !prefix.is_empty() {
         return None;
@@ -209,7 +182,6 @@ fn settings_children(prefix: &str) -> Option<Vec<Value>> {
     )
 }
 
-/// The display name of the catalog entry with `spelling`, else the spelling.
 fn display_name(spelling: &str) -> String {
     catalog()
         .into_iter()
