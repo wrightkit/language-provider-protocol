@@ -248,7 +248,7 @@ impl Server {
         let edits: Vec<Value> = sorted_entries(&params.documents)
             .into_iter()
             .map(|(key, doc)| {
-                let Some(puzzle) = parse_document(&doc.text).into_puzzle() else {
+                let Some(puzzle) = parse_cleanly(doc) else {
                     return Err(HandlerError::lpp(
                         "invalidDocument",
                         json!({ "uri": doc.uri, "reason": "documentHasErrors" }),
@@ -448,6 +448,10 @@ fn parsed_set(
             Ok((doc, parse_document(&doc.text)))
         })
         .collect()
+}
+
+fn parse_cleanly(doc: &Document) -> Option<Puzzle> {
+    parse_document(&doc.text).into_puzzle()
 }
 
 fn check_document(doc: &Document) -> Result<(), HandlerError> {

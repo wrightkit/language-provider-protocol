@@ -3,6 +3,7 @@ use serde_json::{Value, json};
 use std::fmt::Write;
 
 use super::Puzzle;
+use super::symbols::is_valid_identifier;
 
 pub(crate) const ARTIFACT_FORMAT: &str = "x-demo/puzzle-eval-v1";
 pub(crate) const SUMMARY_ARTIFACT_FORMAT: &str = "x-demo/puzzle-summary-v1";
@@ -43,17 +44,11 @@ struct SheetOp {
     arg: i64,
 }
 
-fn is_ident(name: &str) -> bool {
-    let mut chars = name.chars();
-    matches!(chars.next(), Some(c) if c.is_ascii_alphabetic() || c == '_')
-        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
-}
-
 pub(crate) fn reconstruct_source(content: &str) -> Option<String> {
     let sheet: Sheet = serde_json::from_str(content).ok()?;
-    if !is_ident(&sheet.name)
-        || sheet.ops.iter().any(|op| !is_ident(&op.name))
-        || sheet.solution.iter().any(|name| !is_ident(name))
+    if !is_valid_identifier(&sheet.name)
+        || sheet.ops.iter().any(|op| !is_valid_identifier(&op.name))
+        || sheet.solution.iter().any(|name| !is_valid_identifier(name))
     {
         return None;
     }

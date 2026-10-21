@@ -169,15 +169,17 @@ fn utf16_positions_are_exact() {
 }
 
 #[test]
-fn trailing_newline_phantom_line_is_a_valid_position() {
+fn trailing_newline_phantom_line_has_an_empty_span() {
     let src = SourceText::new("a\n");
     assert_eq!(src.line_text(0), "a");
     assert_eq!(src.line_text(1), "");
     assert_eq!(src.byte_of(pos(1, 0)), Some(2));
+    assert_eq!(src.position_of(2), pos(1, 0));
 
     let src = SourceText::new("a\r\n");
     assert_eq!(src.line_text(1), "");
     assert_eq!(src.byte_of(pos(1, 0)), Some(3));
+    assert_eq!(src.position_of(3), pos(1, 0));
 
     let src = SourceText::new("a\n\nb");
     assert_eq!(src.line_text(1), "");
@@ -383,18 +385,29 @@ fn declaration_range_points_at_the_declaration() {
 }
 
 #[test]
-fn occurrences_list_declaration_first_then_references() {
-    let (_, puzzle) = puzzle_of(CLEAN);
+fn occurrences_are_in_document_order() {
+    const SRC: &str = "puzzle p {\n  target = 2\n  start = 1\n  solution = [ d, d ]\n  ops {\n    d: x => x + 1\n  }\n}";
+    let (_, puzzle) = puzzle_of(SRC);
     assert_eq!(
-        puzzle.occurrences("double", true),
-        vec![rng(4, 4, 4, 10), rng(7, 15, 7, 21), rng(7, 23, 7, 29)]
+        puzzle.occurrences_in_document_order("d"),
+        vec![rng(3, 15, 3, 16), rng(3, 18, 3, 19), rng(5, 4, 5, 5)]
+    );
+    assert!(puzzle.occurrences_in_document_order("triple").is_empty());
+}
+
+#[test]
+fn symbol_occurrences_list_the_declaration_first() {
+    const SRC: &str = "puzzle p {\n  target = 2\n  start = 1\n  solution = [ d, d ]\n  ops {\n    d: x => x + 1\n  }\n}";
+    let (src, puzzle) = puzzle_of(SRC);
+    let symbol = symbol_at(&src, &puzzle, 3, 15).expect("op d");
+    assert_eq!(
+        puzzle.symbol_occurrences(&symbol, true),
+        vec![rng(5, 4, 5, 5), rng(3, 15, 3, 16), rng(3, 18, 3, 19)]
     );
     assert_eq!(
-        puzzle.occurrences("double", false),
-        vec![rng(7, 15, 7, 21), rng(7, 23, 7, 29)]
+        puzzle.symbol_occurrences(&symbol, false),
+        vec![rng(3, 15, 3, 16), rng(3, 18, 3, 19)]
     );
-    assert_eq!(puzzle.occurrences("plus1", true), vec![rng(5, 4, 5, 9)]);
-    assert!(puzzle.occurrences("triple", true).is_empty());
 }
 
 #[test]

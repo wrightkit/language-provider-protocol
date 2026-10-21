@@ -19,31 +19,40 @@ impl EditValidation {
     }
 }
 
+struct ResolvedEdit {
+    request_index: usize,
+    start: usize,
+    end: usize,
+}
+
 pub(crate) fn validate_edits(text: &str, edits: &[(Range, String)]) -> EditValidation {
     let src = SourceText::new(text);
 
     let mut resolved = Vec::with_capacity(edits.len());
-    for (i, (range, _)) in edits.iter().enumerate() {
+    for (request_index, (range, _)) in edits.iter().enumerate() {
         match (src.byte_of(range.start), src.byte_of(range.end)) {
-            (Some(start), Some(end)) if start <= end => resolved.push((start, end)),
-            _ => return EditValidation::invalid("rangeOutOfBounds", Some(i)),
+            (Some(start), Some(end)) if start <= end => resolved.push(ResolvedEdit {
+                request_index,
+                start,
+                end,
+            }),
+            _ => return EditValidation::invalid("rangeOutOfBounds", Some(request_index)),
         }
     }
 
-    let mut order: Vec<usize> = (0..edits.len()).collect();
-    order.sort_by_key(|&i| resolved[i].0);
-    for pair in order.windows(2) {
-        if resolved[pair[0]].1 > resolved[pair[1]].0 {
-            return EditValidation::invalid("overlappingEdits", Some(pair[1]));
+    resolved.sort_by_key(|edit| edit.start);
+    for pair in resolved.windows(2) {
+        if pair[0].end > pair[1].start {
+            return EditValidation::invalid("overlappingEdits", Some(pair[1].request_index));
         }
     }
 
     let mut result = String::with_capacity(text.len());
     let mut cursor = 0;
-    for &i in &order {
-        result.push_str(&text[cursor..resolved[i].0]);
-        result.push_str(&edits[i].1);
-        cursor = resolved[i].1;
+    for edit in &resolved {
+        result.push_str(&text[cursor..edit.start]);
+        result.push_str(&edits[edit.request_index].1);
+        cursor = edit.end;
     }
     result.push_str(&text[cursor..]);
 

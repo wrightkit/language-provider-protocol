@@ -59,19 +59,21 @@ impl Puzzle {
         }
     }
 
-    pub(crate) fn occurrences(&self, name: &str, include_declaration: bool) -> Vec<Range> {
-        let mut ranges = Vec::new();
-        if include_declaration {
-            if let Some(op) = self.op(name) {
-                ranges.push(op.name_range);
-            }
-        }
-        ranges.extend(
-            self.solution
-                .iter()
-                .filter(|entry| entry.name == name)
-                .map(|entry| entry.range),
-        );
+    fn references<'a>(&'a self, name: &'a str) -> impl Iterator<Item = Range> + 'a {
+        self.solution
+            .iter()
+            .filter(move |entry| entry.name == name)
+            .map(|entry| entry.range)
+    }
+
+    pub(crate) fn occurrences_in_document_order(&self, name: &str) -> Vec<Range> {
+        let mut ranges: Vec<Range> = self
+            .op(name)
+            .map(|op| op.name_range)
+            .into_iter()
+            .chain(self.references(name))
+            .collect();
+        ranges.sort_by_key(|r| (r.start.line, r.start.character));
         ranges
     }
 
@@ -85,7 +87,12 @@ impl Puzzle {
                 .then_some(self.name_range)
                 .into_iter()
                 .collect(),
-            Symbol::Op { name } => self.occurrences(name, include_declaration),
+            Symbol::Op { name } => self
+                .declaration_range(symbol)
+                .filter(|_| include_declaration)
+                .into_iter()
+                .chain(self.references(name))
+                .collect(),
         }
     }
 
@@ -105,11 +112,7 @@ impl Puzzle {
                     Vec::new()
                 }
             }
-            Symbol::Op { name } => {
-                let mut ranges = self.occurrences(name, true);
-                ranges.sort_by_key(|r| (r.start.line, r.start.character));
-                ranges
-            }
+            Symbol::Op { name } => self.occurrences_in_document_order(name),
         }
     }
 }

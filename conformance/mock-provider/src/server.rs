@@ -13,19 +13,60 @@ pub(crate) const LANGUAGE_ID: &str = "x-demo-lang";
 const SERVER_NAME: &str = "lpp-mock-provider";
 const LANGUAGE_EXTENSIONS: [&str; 1] = ["xdl"];
 
-const CAPABILITIES: &[(&str, u32)] = &[
-    ("check", 0),
-    ("compile", 0),
-    ("reconstruct", 0),
-    ("symbols", 0),
-    ("definition", 0),
-    ("references", 0),
-    ("rename", 0),
-    ("editValidation", 0),
-    ("projectLoading", 1),
-    ("sourceIdentity", 3),
-    ("lookup", 5),
-    ("resolveIds", 6),
+struct Capability {
+    name: &'static str,
+    min_minor: u32,
+}
+
+const CAPABILITIES: &[Capability] = &[
+    Capability {
+        name: "check",
+        min_minor: 0,
+    },
+    Capability {
+        name: "compile",
+        min_minor: 0,
+    },
+    Capability {
+        name: "reconstruct",
+        min_minor: 0,
+    },
+    Capability {
+        name: "symbols",
+        min_minor: 0,
+    },
+    Capability {
+        name: "definition",
+        min_minor: 0,
+    },
+    Capability {
+        name: "references",
+        min_minor: 0,
+    },
+    Capability {
+        name: "rename",
+        min_minor: 0,
+    },
+    Capability {
+        name: "editValidation",
+        min_minor: 0,
+    },
+    Capability {
+        name: "projectLoading",
+        min_minor: 1,
+    },
+    Capability {
+        name: "sourceIdentity",
+        min_minor: 3,
+    },
+    Capability {
+        name: "lookup",
+        min_minor: 5,
+    },
+    Capability {
+        name: "resolveIds",
+        min_minor: 6,
+    },
 ];
 
 fn minor_of(version: &str) -> Option<u32> {
@@ -46,9 +87,9 @@ fn not_initialized(id: &Value) -> Value {
 }
 
 pub(crate) fn disable_capability(disabled: &mut HashSet<&'static str>, name: &str) -> bool {
-    match CAPABILITIES.iter().find(|(n, _)| *n == name) {
-        Some(&(n, _)) => {
-            disabled.insert(n);
+    match CAPABILITIES.iter().find(|cap| cap.name == name) {
+        Some(cap) => {
+            disabled.insert(cap.name);
             true
         }
         None => false,
@@ -79,18 +120,18 @@ impl Server {
     }
 
     pub(crate) fn capability(&self, name: &str) -> bool {
-        let Some(&(_, min)) = CAPABILITIES.iter().find(|(n, _)| *n == name) else {
+        let Some(cap) = CAPABILITIES.iter().find(|cap| cap.name == name) else {
             return false;
         };
-        self.since(min) && !self.disabled.contains(name)
+        self.since(cap.min_minor) && !self.disabled.contains(name)
     }
 
     fn capabilities_json(&self) -> Value {
         let minor = self.version_minor.unwrap_or(0);
         CAPABILITIES
             .iter()
-            .filter(|(_, min)| minor >= *min)
-            .map(|(name, _)| ((*name).to_string(), json!(self.capability(name))))
+            .filter(|cap| minor >= cap.min_minor)
+            .map(|cap| (cap.name.to_string(), json!(self.capability(cap.name))))
             .collect::<serde_json::Map<String, Value>>()
             .into()
     }
