@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
+use crate::invariants::Invariants;
 use crate::project_fixture::{ProjectFixture, materialize_project, substitute_project_uri};
 use crate::scenario::{Scenario, Step, StepRequest};
 
@@ -40,6 +41,7 @@ pub(crate) fn run_scenario(
         let _ = done_tx.send(());
     });
 
+    let mut invariants = Invariants::default();
     for (i, step) in scenario.steps.iter().enumerate() {
         let request_line = step_request_line(step, project.as_ref());
         if writeln!(stdin, "{request_line}")
@@ -75,6 +77,11 @@ pub(crate) fn run_scenario(
                 return Err(format!("step {i}: response is not valid JSON: {e}"));
             }
         };
+        let request: Value = serde_json::from_str(&request_line).unwrap_or(Value::Null);
+        if let Err(detail) = invariants.check(&request, &actual) {
+            kill(&mut child);
+            return Err(format!("step {i}: wire invariant violated: {detail}"));
+        }
         let expected = substitute_project_uri(&step.expect_response, project.as_ref());
         if let Err(detail) = crate::matcher::matches(&expected, &actual) {
             kill(&mut child);
@@ -277,6 +284,37 @@ mod tests {
         let error = run_scenario(&scenario, "/bin/sh", 0).expect_err("extra output fails");
         fs::remove_dir_all(&dir).ok();
         assert!(error.contains("unexpected line"), "got: {error}");
+    }
+
+    #[test]
+    fn compile_inputs_without_capability_fails_even_when_expected() {
+        let dir = scratch("compile-inputs");
+        let script = dir.join("provider.sh");
+        fs::write(
+            &script,
+            "#!/bin/sh\nread line\necho '{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"1.7\",\"capabilities\":{\"compileInputs\":false}}}'\nread line\necho '{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"diagnostics\":[],\"artifact\":null,\"compileInputs\":[]}}'\nexit 0\n",
+        )
+        .unwrap();
+        let initialize = json!({"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"1.7","capabilities":{"compileInputs":false}}});
+        let compiled = json!({"jsonrpc":"2.0","id":2,"result":{"diagnostics":[],"artifact":null,"compileInputs":[]}});
+        let steps = vec![
+            Step {
+                request: StepRequest::Request(
+                    json!({"jsonrpc":"2.0","id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.7"}}),
+                ),
+                expect_response: initialize,
+            },
+            Step {
+                request: StepRequest::Request(
+                    json!({"jsonrpc":"2.0","id":2,"method":"lpp/compile","params":{"entry":{"uri":"file:///p","languageId":"x","version":1}}}),
+                ),
+                expect_response: compiled,
+            },
+        ];
+        let error = run_scenario(&scenario(&script, vec![], steps), "/bin/sh", 0)
+            .expect_err("invariant rejects the field");
+        fs::remove_dir_all(&dir).ok();
+        assert!(error.contains("wire invariant violated"), "got: {error}");
     }
 
     #[test]

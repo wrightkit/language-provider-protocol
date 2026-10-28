@@ -88,17 +88,17 @@ impl Server {
 
     fn compile(&self, params: Value) -> Result<Value, HandlerError> {
         let accepted = accepted_artifact_formats(self, &params)?;
-        let (documents, entry_uri) =
+        let (documents, loaded) =
             documents_for_request(self, parse_params(params)?, "lpp/compile")?;
-        if entry_uri.is_none() && documents.len() != 1 {
+        if loaded.is_none() && documents.len() != 1 {
             return Err(HandlerError::refusal(
                 "compile.requiresSingleDocument",
                 json!({}),
                 "compile requires exactly one document",
             ));
         }
-        let entry = match &entry_uri {
-            Some(uri) => &documents[uri],
+        let entry = match &loaded {
+            Some(loaded) => &documents[&loaded.uri],
             None => documents.values().next().expect("len == 1"),
         };
         check_document(entry)?;
@@ -127,9 +127,12 @@ impl Server {
             json!({ "format": format, "content": content })
         };
         let mut result = json!({ "diagnostics": diagnostics, "artifact": artifact });
-        if self.capability("sourceIdentity") {
-            if let Some(uri) = &entry_uri {
-                result["sourceIdentity"] = json!(sha256_hex(&documents[uri].text));
+        if let Some(loaded) = &loaded {
+            if self.capability("sourceIdentity") {
+                result["sourceIdentity"] = json!(sha256_hex(&entry.text));
+            }
+            if self.capability("compileInputs") {
+                result["compileInputs"] = json!(loaded.inputs);
             }
         }
         Ok(result)

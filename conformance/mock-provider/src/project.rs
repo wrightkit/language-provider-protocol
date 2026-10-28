@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::collections::{BTreeSet, HashMap};
+use std::path::{Component, Path, PathBuf};
 
 use lpp_conformance_common::{file_uri_to_path, path_to_file_uri};
 use serde_json::json;
@@ -8,11 +8,16 @@ use crate::rpc::HandlerError;
 use crate::server::{LANGUAGE_ID, Server};
 use crate::wire::{DocsParams, Document, ProjectEntry};
 
+pub(crate) struct LoadedEntry {
+    pub(crate) uri: String,
+    pub(crate) inputs: Vec<String>,
+}
+
 pub(crate) fn documents_for_request(
     server: &Server,
     params: DocsParams,
     method: &str,
-) -> Result<(HashMap<String, Document>, Option<String>), HandlerError> {
+) -> Result<(HashMap<String, Document>, Option<LoadedEntry>), HandlerError> {
     match (params.documents, params.entry) {
         (Some(documents), None) => Ok((documents, None)),
         (None, Some(entry)) => {
@@ -26,12 +31,12 @@ pub(crate) fn documents_for_request(
                     "capability 'projectLoading' is not available",
                 ));
             }
-            let (documents, entry_uri) = Loader {
+            let (documents, loaded) = Loader {
                 server,
                 entry: &entry,
             }
             .run()?;
-            Ok((documents, Some(entry_uri)))
+            Ok((documents, Some(loaded)))
         }
         _ => Err(HandlerError::invalid_params()),
     }
@@ -65,7 +70,7 @@ impl Loader<'_> {
         HandlerError::lpp("projectLoadFailed", details, message)
     }
 
-    fn run(self) -> Result<(HashMap<String, Document>, String), HandlerError> {
+    fn run(self) -> Result<(HashMap<String, Document>, LoadedEntry), HandlerError> {
         let entry = self.entry;
         if entry.version < 0 {
             return Err(self.invalid(
@@ -102,6 +107,7 @@ impl Loader<'_> {
             ));
         };
 
+        let mut traversed = vec![path.clone()];
         let path = std::fs::canonicalize(&path).map_err(|_| {
             let (reason, message) = match target {
                 Target::File => ("entryNotFound", "project entry could not be loaded"),
@@ -133,6 +139,7 @@ impl Loader<'_> {
                     ));
                 }
                 let selected = path.join("entry.xdl");
+                traversed.push(selected.clone());
                 if !selected.is_file() {
                     return Err(self.fail(
                         "defaultEntryNotFound",
@@ -200,6 +207,8 @@ impl Loader<'_> {
         }
         paths.sort();
 
+        traversed.push(root.clone());
+        traversed.extend(paths.iter().cloned());
         let mut documents = HashMap::new();
         for path in paths {
             let unresolved_uri = path_to_file_uri(&path);
@@ -234,6 +243,57 @@ impl Loader<'_> {
                 },
             );
         }
-        Ok((documents, canonical_entry_uri))
+        let inputs = documents
+            .keys()
+            .cloned()
+            .chain(declared_paths(&traversed).filter_map(|path| path_to_file_uri(&path)))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        Ok((
+            documents,
+            LoadedEntry {
+                uri: canonical_entry_uri,
+                inputs,
+            },
+        ))
     }
+}
+
+/// Each traversed path plus every symbolic link followed while resolving it,
+/// including links in a chain and linked directory components, so a
+/// retargeted link shows up as a changed declared input.
+fn declared_paths(traversed: &[PathBuf]) -> impl Iterator<Item = PathBuf> + '_ {
+    traversed.iter().flat_map(|path| {
+        let mut declared = vec![path.clone()];
+        let mut hops = 0;
+        resolve(path, &mut declared, &mut hops);
+        declared
+    })
+}
+
+const MAX_LINK_HOPS: u32 = 40;
+
+fn resolve(path: &Path, links: &mut Vec<PathBuf>, hops: &mut u32) -> PathBuf {
+    let mut resolved = PathBuf::from("/");
+    for component in path.components() {
+        match component {
+            Component::Normal(name) => {
+                let next = resolved.join(name);
+                match std::fs::read_link(&next) {
+                    Ok(target) if *hops < MAX_LINK_HOPS => {
+                        *hops += 1;
+                        links.push(next);
+                        resolved = resolve(&resolved.join(target), links, hops);
+                    }
+                    _ => resolved = next,
+                }
+            }
+            Component::ParentDir => {
+                resolved.pop();
+            }
+            Component::RootDir | Component::CurDir | Component::Prefix(_) => {}
+        }
+    }
+    resolved
 }

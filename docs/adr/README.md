@@ -21,6 +21,7 @@ material process or wire-boundary decision.
 | [0004](0004-artifact-format-negotiation.md) | Client-stated artifact format negotiation for `lpp/compile` | Accepted | 2026-09-24 | 2026-09-24 | [Issue #39](https://github.com/wrightkit/language-provider-protocol/issues/39), [workshop-rs#271](https://github.com/wrightkit/workshop-rs/issues/271) |
 | [0005](0005-name-lookup.md) | Provider-owned name lookup via `lpp/lookup` | Accepted | 2026-10-05 | 2026-10-05 | [Issue #45](https://github.com/wrightkit/language-provider-protocol/issues/45), [wright#482](https://github.com/wrightkit/wright/issues/482) |
 | [0006](0006-canonical-id-resolution.md) | Provider-owned canonical id resolution via `lpp/resolveIds` | Accepted | 2026-10-11 | 2026-10-11 | [Issue #55](https://github.com/wrightkit/language-provider-protocol/issues/55) |
+| [0007](0007-declared-compile-inputs.md) | Provider-declared compile inputs for entry-based `lpp/compile` | Accepted | 2026-10-28 | 2026-10-28 | [Issue #105](https://github.com/wrightkit/language-provider-protocol/issues/105), [wright#1005](https://github.com/wrightkit/wright/issues/1005) |
 
 ## Post-baseline audit
 

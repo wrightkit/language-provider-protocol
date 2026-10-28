@@ -97,6 +97,34 @@ document-supplied request that contains more than one document.
   The provider owns effective entry selection. If the capability is false, the
   field MUST be omitted. Document-supplied requests MAY omit it. LPP 1.1 and
   1.2 compile results MUST NOT include this field.
+* `compileInputs`: defined only in LPP 1.7 and later; independently optional.
+  If the provider advertises `compileInputs: true`, every entry-based compile
+  result MUST include it, whether or not `artifact` is `null`. It is an array
+  of absolute `file:` URIs, sorted by code-point order and without duplicates.
+  It lists every path the compile accessed, in the form it was accessed and
+  before any symbolic link is resolved: every file whose content the compile
+  read, including files that are not source documents (for example
+  compile-time scripts); every directory whose entries the compile listed;
+  every path the provider tried to access but found missing; and every
+  symbolic link the provider followed, including a link among the ancestors
+  of an accessed path. When the provider follows a link, it also lists the
+  path the link resolves to.
+  The result depends only on these observations of the listed paths:
+  * for each listed path: whether it exists, and its kind (file, directory,
+    or symbolic link), observed without following a final symbolic link;
+  * for each listed symbolic link: its target;
+  * for each listed file: its content;
+  * for each listed directory: the names and kinds of its entries, observed
+    without following symbolic links.
+
+  A client compares these observations to decide whether a cached result is
+  stale. A change that leaves all of them unchanged cannot change the result;
+  for example, editing a file that is not listed has no effect even if it is
+  an entry of a listed directory. The field lives outside the opaque artifact,
+  so a client never reads the artifact payload to learn the inputs. If the capability is
+  false, the field MUST be omitted. Document-supplied compile results MUST NOT include it, and LPP 1.6
+  and earlier compile results MUST NOT include it. See
+  [ADR 0007](../adr/0007-declared-compile-inputs.md).
 * `artifact`: the compiled Workshop artifact, or `null`.
 * The `artifact` MUST be `null` whenever any error-severity diagnostic is
   reported. The provider MAY return `null` artifact in other failure cases.
