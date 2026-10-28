@@ -1,5 +1,5 @@
 use std::collections::{BTreeSet, HashMap};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use lpp_conformance_common::{file_uri_to_path, path_to_file_uri};
 use serde_json::json;
@@ -260,15 +260,40 @@ impl Loader<'_> {
     }
 }
 
-/// Each traversed path plus every symbolic link among its ancestors, so a
+/// Each traversed path plus every symbolic link followed while resolving it,
+/// including links in a chain and linked directory components, so a
 /// retargeted link shows up as a changed declared input.
 fn declared_paths(traversed: &[PathBuf]) -> impl Iterator<Item = PathBuf> + '_ {
     traversed.iter().flat_map(|path| {
-        path.ancestors()
-            .skip(1)
-            .filter(|ancestor| ancestor.is_symlink())
-            .chain(std::iter::once(path.as_path()))
-            .map(Path::to_path_buf)
-            .collect::<Vec<_>>()
+        let mut declared = vec![path.clone()];
+        let mut hops = 0;
+        resolve(path, &mut declared, &mut hops);
+        declared
     })
+}
+
+const MAX_LINK_HOPS: u32 = 40;
+
+fn resolve(path: &Path, links: &mut Vec<PathBuf>, hops: &mut u32) -> PathBuf {
+    let mut resolved = PathBuf::from("/");
+    for component in path.components() {
+        match component {
+            Component::Normal(name) => {
+                let next = resolved.join(name);
+                match std::fs::read_link(&next) {
+                    Ok(target) if *hops < MAX_LINK_HOPS => {
+                        *hops += 1;
+                        links.push(next);
+                        resolved = resolve(&resolved.join(target), links, hops);
+                    }
+                    _ => resolved = next,
+                }
+            }
+            Component::ParentDir => {
+                resolved.pop();
+            }
+            Component::RootDir | Component::CurDir | Component::Prefix(_) => {}
+        }
+    }
+    resolved
 }

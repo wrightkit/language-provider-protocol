@@ -183,3 +183,40 @@ fn compile_inputs_declare_followed_symlinks() {
         );
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn compile_inputs_declare_links_followed_during_resolution() {
+    let base = project_dir("compile-inputs-link-chain");
+    let root = base.join("proj");
+    std::fs::create_dir_all(base.join("lib")).unwrap();
+    std::fs::create_dir(&root).unwrap();
+    std::fs::write(root.join("entry.xdl"), VALID).unwrap();
+    std::fs::write(base.join("lib/a.xdl"), VALID).unwrap();
+    std::fs::write(base.join("lib/c.xdl"), VALID).unwrap();
+    std::os::unix::fs::symlink("a.xdl", base.join("lib/mid.xdl")).unwrap();
+    std::os::unix::fs::symlink("../lib/mid.xdl", root.join("chain.xdl")).unwrap();
+    std::os::unix::fs::symlink("lib", base.join("ld")).unwrap();
+    std::os::unix::fs::symlink("../ld/c.xdl", root.join("linked-dir.xdl")).unwrap();
+    let base = base.canonicalize().unwrap();
+    let root = base.join("proj");
+    let init =
+        r#"{"jsonrpc":"2.0","id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.7"}}"#;
+    let request = format!(
+        r#"{{"jsonrpc":"2.0","id":2,"method":"lpp/compile","params":{{"entry":{{"uri":"file://{}","languageId":"x-demo-lang","version":1,"kind":"directory"}}}}}}"#,
+        root.display()
+    );
+    let responses = run_session_args(
+        &["--protocol-version", "1.7"],
+        format!("{init}\n{request}\n").as_bytes(),
+    );
+    std::fs::remove_dir_all(&base).ok();
+    let inputs = &responses[1]["result"]["compileInputs"];
+    for path in ["proj/chain.xdl", "lib/mid.xdl", "proj/linked-dir.xdl", "ld"] {
+        let uri = format!("file://{}/{path}", base.display());
+        assert!(
+            inputs.as_array().unwrap().contains(&serde_json::json!(uri)),
+            "{uri} missing from {inputs}"
+        );
+    }
+}
