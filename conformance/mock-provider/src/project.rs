@@ -8,11 +8,16 @@ use crate::rpc::HandlerError;
 use crate::server::{LANGUAGE_ID, Server};
 use crate::wire::{DocsParams, Document, ProjectEntry};
 
+pub(crate) struct LoadedEntry {
+    pub(crate) uri: String,
+    pub(crate) inputs: Vec<String>,
+}
+
 pub(crate) fn documents_for_request(
     server: &Server,
     params: DocsParams,
     method: &str,
-) -> Result<(HashMap<String, Document>, Option<String>), HandlerError> {
+) -> Result<(HashMap<String, Document>, Option<LoadedEntry>), HandlerError> {
     match (params.documents, params.entry) {
         (Some(documents), None) => Ok((documents, None)),
         (None, Some(entry)) => {
@@ -26,12 +31,12 @@ pub(crate) fn documents_for_request(
                     "capability 'projectLoading' is not available",
                 ));
             }
-            let (documents, entry_uri) = Loader {
+            let (documents, loaded) = Loader {
                 server,
                 entry: &entry,
             }
             .run()?;
-            Ok((documents, Some(entry_uri)))
+            Ok((documents, Some(loaded)))
         }
         _ => Err(HandlerError::invalid_params()),
     }
@@ -65,7 +70,7 @@ impl Loader<'_> {
         HandlerError::lpp("projectLoadFailed", details, message)
     }
 
-    fn run(self) -> Result<(HashMap<String, Document>, String), HandlerError> {
+    fn run(self) -> Result<(HashMap<String, Document>, LoadedEntry), HandlerError> {
         let entry = self.entry;
         if entry.version < 0 {
             return Err(self.invalid(
@@ -234,6 +239,16 @@ impl Loader<'_> {
                 },
             );
         }
-        Ok((documents, canonical_entry_uri))
+        let mut inputs: Vec<String> = documents.keys().cloned().collect();
+        inputs
+            .push(path_to_file_uri(&root).expect("the entry has a URI, so its directory has one"));
+        inputs.sort();
+        Ok((
+            documents,
+            LoadedEntry {
+                uri: canonical_entry_uri,
+                inputs,
+            },
+        ))
     }
 }

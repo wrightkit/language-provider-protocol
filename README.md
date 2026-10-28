@@ -8,7 +8,7 @@ its internal AST.
 
 [`opy-rs`](https://github.com/wrightkit/opy-rs) ships `opy-provider`, the
 LPP provider Wright uses for OverPy. The spec covers protocol versions 1.0
-to 1.6.
+to 1.7.
 
 ## Implementing a provider
 

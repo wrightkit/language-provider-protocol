@@ -6,7 +6,8 @@ use crate::methods::METHODS;
 use crate::rpc::{lpp_error, ok, parse_params, std_error};
 use crate::wire::InitParams;
 
-pub(crate) const PROTOCOL_VERSIONS: [&str; 7] = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6"];
+pub(crate) const PROTOCOL_VERSIONS: [&str; 8] =
+    ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7"];
 pub(crate) const DEFAULT_PROTOCOL_VERSION: &str = PROTOCOL_VERSIONS[0];
 pub(crate) const LANGUAGE_ID: &str = "x-demo-lang";
 
@@ -66,6 +67,10 @@ const CAPABILITIES: &[Capability] = &[
     Capability {
         name: "resolveIds",
         min_minor: 6,
+    },
+    Capability {
+        name: "compileInputs",
+        min_minor: 7,
     },
 ];
 

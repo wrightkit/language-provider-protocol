@@ -97,6 +97,20 @@ document-supplied request that contains more than one document.
   The provider owns effective entry selection. If the capability is false, the
   field MUST be omitted. Document-supplied requests MAY omit it. LPP 1.1 and
   1.2 compile results MUST NOT include this field.
+* `compileInputs`: defined only in LPP 1.7 and later; independently optional.
+  If the provider advertises `compileInputs: true`, every entry-based compile
+  result MUST include it, whether or not `artifact` is `null`. It is an array
+  of absolute `file:` URIs, sorted by code-point order and without duplicates.
+  It lists every file whose content the compile read and every directory whose
+  listing the compile read, including files that are not source documents
+  (for example compile-time scripts) and paths the provider tried to read but
+  found missing. The provider guarantees that creating, editing, or deleting
+  a path that is neither listed nor an entry of a listed directory cannot
+  change the result. The field lives outside the opaque artifact, so a client
+  never reads the artifact payload to learn the inputs. If the capability is
+  false, the field MUST be omitted. Document-supplied compile results MUST NOT include it, and LPP 1.6
+  and earlier compile results MUST NOT include it. See
+  [ADR 0007](../adr/0007-declared-compile-inputs.md).
 * `artifact`: the compiled Workshop artifact, or `null`.
 * The `artifact` MUST be `null` whenever any error-severity diagnostic is
   reported. The provider MAY return `null` artifact in other failure cases.

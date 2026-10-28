@@ -1,3 +1,4 @@
+mod invariants;
 mod matcher;
 mod project_fixture;
 mod scenario;
