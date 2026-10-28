@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.7.1...v1.8.0) (2026-10-28)
+
+
+### Features
+
+* **spec:** let a provider declare the inputs a compile read ([#106](https://github.com/wrightkit/language-provider-protocol/issues/106)) ([f3355bf](https://github.com/wrightkit/language-provider-protocol/commit/f3355bf3a1c070b3b54bc4e57f95c70ab6951af3))
+
 ## [1.7.1](https://github.com/wrightkit/language-provider-protocol/compare/v1.7.0...v1.7.1) (2026-10-15)
 
 
