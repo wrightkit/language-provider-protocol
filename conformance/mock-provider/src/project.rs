@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::collections::{BTreeSet, HashMap};
+use std::path::{Path, PathBuf};
 
 use lpp_conformance_common::{file_uri_to_path, path_to_file_uri};
 use serde_json::json;
@@ -107,6 +107,7 @@ impl Loader<'_> {
             ));
         };
 
+        let mut traversed = vec![path.clone()];
         let path = std::fs::canonicalize(&path).map_err(|_| {
             let (reason, message) = match target {
                 Target::File => ("entryNotFound", "project entry could not be loaded"),
@@ -138,6 +139,7 @@ impl Loader<'_> {
                     ));
                 }
                 let selected = path.join("entry.xdl");
+                traversed.push(selected.clone());
                 if !selected.is_file() {
                     return Err(self.fail(
                         "defaultEntryNotFound",
@@ -205,6 +207,8 @@ impl Loader<'_> {
         }
         paths.sort();
 
+        traversed.push(root.clone());
+        traversed.extend(paths.iter().cloned());
         let mut documents = HashMap::new();
         for path in paths {
             let unresolved_uri = path_to_file_uri(&path);
@@ -239,10 +243,13 @@ impl Loader<'_> {
                 },
             );
         }
-        let mut inputs: Vec<String> = documents.keys().cloned().collect();
-        inputs
-            .push(path_to_file_uri(&root).expect("the entry has a URI, so its directory has one"));
-        inputs.sort();
+        let inputs = documents
+            .keys()
+            .cloned()
+            .chain(declared_paths(&traversed).filter_map(|path| path_to_file_uri(&path)))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
         Ok((
             documents,
             LoadedEntry {
@@ -251,4 +258,17 @@ impl Loader<'_> {
             },
         ))
     }
+}
+
+/// Each traversed path plus every symbolic link among its ancestors, so a
+/// retargeted link shows up as a changed declared input.
+fn declared_paths(traversed: &[PathBuf]) -> impl Iterator<Item = PathBuf> + '_ {
+    traversed.iter().flat_map(|path| {
+        path.ancestors()
+            .skip(1)
+            .filter(|ancestor| ancestor.is_symlink())
+            .chain(std::iter::once(path.as_path()))
+            .map(Path::to_path_buf)
+            .collect::<Vec<_>>()
+    })
 }

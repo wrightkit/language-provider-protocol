@@ -1,6 +1,6 @@
 {
   "name": "compile-inputs",
-  "description": "LPP 1.7 advertises compile inputs and returns every file and directory listing the entry-based compile read; a file the provider never reads is not an input.",
+  "description": "LPP 1.7 advertises compile inputs and returns every path the entry-based compile accessed. The project directory is listed because the compile listed its entries; notes.txt is not listed because its content is never read, so editing it cannot change the result.",
   "scope": "semantics",
   "session": "1.7",
   "providerArgs": ["--protocol-version", "1.7"],

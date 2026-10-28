@@ -26,11 +26,14 @@ version check
 LPP 1.7 adds an independently negotiated `compileInputs` capability. When a
 provider advertises `compileInputs: true`, every entry-based compile result
 MUST include `compileInputs`: a sorted, duplicate-free array of absolute
-`file:` URIs. The array lists every file whose content the compile read and
-every directory whose listing it read, including non-source files and paths
-that were probed but missing. The provider guarantees that a change to a path
-that is neither listed nor an entry of a listed directory cannot change the
-result.
+`file:` URIs. The array lists every path the compile accessed, in the form it
+was accessed: files whose content it read (including non-source files),
+directories whose entries it listed, paths it probed but found missing, and
+every symbolic link it followed, together with the link's resolved path. The
+result depends only on the existence and kind of each listed path, the target
+of each listed link, the content of each listed file, and the entry names and
+kinds of each listed directory. A change that leaves these unchanged cannot
+change the result.
 
 The field is gated like `sourceIdentity` ([ADR 0003](0003-owner-selected-source-identity.md)):
 a client that needs it requests `"1.7"` and requires the capability. If the
@@ -49,16 +52,18 @@ evidence is [fixtures 69–70](../../conformance/fixtures/v1/).
 
 ## Consequences
 
-- A client can hash only the declared inputs and keep a cached result while
-  none of them change. A client that sees no capability keeps whole-tree
+- A client can record the observations of the declared inputs and keep a
+  cached result while none of them change. Editing an unlisted file inside a
+  listed directory does not invalidate the result. A client that sees no capability keeps whole-tree
   hashing.
 - The artifact stays opaque. The declaration is a result field, not artifact
   content.
-- The provider must track every read the compile makes, including directory
-  listings and failed probes. A provider that cannot do this advertises the
+- The provider must track every access the compile makes, including directory
+  listings, failed probes, and followed symbolic links. A provider that cannot do this advertises the
   capability as false.
 - The declaration is a set of paths, not a content hash. The client still
-  hashes the listed files and listings itself.
+  hashes the listed files and observes the listed directories and links
+  itself.
 
 ## Alternatives considered
 
@@ -74,6 +79,11 @@ boundary, and because a provider without such a table gains nothing.
 Simpler to produce. Rejected because a provider that discovers sources by
 listing a directory changes its result when a file is added there. Without the
 directory in the set, the guarantee would be false for directory targets.
+
+### Canonical paths only
+
+Each input as its resolved path. Rejected because retargeting a symbolic link
+then changes the result while no declared input changes.
 
 ### Content digests per input
 

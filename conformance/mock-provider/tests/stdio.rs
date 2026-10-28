@@ -150,3 +150,36 @@ fn project_load_failure_names_the_broken_source_uri() {
     let uri = lpp["details"]["uri"].as_str().unwrap_or_default();
     assert!(uri.ends_with("/broken.xdl"), "details.uri: {uri}");
 }
+
+#[cfg(unix)]
+#[test]
+fn compile_inputs_declare_followed_symlinks() {
+    let base = project_dir("compile-inputs-symlink");
+    let root = base.join("proj");
+    std::fs::create_dir_all(base.join("lib")).unwrap();
+    std::fs::create_dir(&root).unwrap();
+    std::fs::write(root.join("entry.xdl"), VALID).unwrap();
+    std::fs::write(base.join("lib/a.xdl"), VALID).unwrap();
+    std::os::unix::fs::symlink("../lib/a.xdl", root.join("support.xdl")).unwrap();
+    let root = root.canonicalize().unwrap();
+    let init =
+        r#"{"jsonrpc":"2.0","id":1,"method":"lpp/initialize","params":{"protocolVersion":"1.7"}}"#;
+    let request = format!(
+        r#"{{"jsonrpc":"2.0","id":2,"method":"lpp/compile","params":{{"entry":{{"uri":"file://{}","languageId":"x-demo-lang","version":1,"kind":"directory"}}}}}}"#,
+        root.display()
+    );
+    let responses = run_session_args(
+        &["--protocol-version", "1.7"],
+        format!("{init}\n{request}\n").as_bytes(),
+    );
+    std::fs::remove_dir_all(&base).ok();
+    let inputs = &responses[1]["result"]["compileInputs"];
+    let link = format!("file://{}/support.xdl", root.display());
+    let target = format!("file://{}/lib/a.xdl", root.parent().unwrap().display());
+    for uri in [&link, &target] {
+        assert!(
+            inputs.as_array().unwrap().contains(&serde_json::json!(uri)),
+            "{uri} missing from {inputs}"
+        );
+    }
+}

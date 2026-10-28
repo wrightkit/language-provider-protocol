@@ -84,7 +84,7 @@ Methods:
 | `lpp/initialize` | none | `{ protocolVersion, clientInfo? }` | `{ protocolVersion, serverInfo, languages, capabilities }` |
 | `lpp/shutdown` | none | `{}` | `null` |
 | `lpp/check` | `check`; plus `projectLoading` for an LPP 1.1+ `entry` request | `{ documents, projectRoot?, locale? }` or `{ entry, projectRoot?, locale? }` | `{ documents: [{ uri, version, diagnostics }] }` |
-| `lpp/compile` | `compile`; plus `projectLoading` for an LPP 1.1+ `entry` request `sourceIdentity` for an LPP 1.3+ entry result, and `compileInputs` for an LPP 1.7+ entry result | `{ documents, projectRoot?, locale?, acceptedArtifactFormats? }` or `{ entry, projectRoot?, locale?, acceptedArtifactFormats? }` (`acceptedArtifactFormats`: LPP 1.4+) | `{ diagnostics: [{ uri, version, diagnostics }], sourceIdentity?, compileInputs?, artifact }` |
+| `lpp/compile` | `compile`; plus `projectLoading` for an LPP 1.1+ `entry` request, `sourceIdentity` for an LPP 1.3+ entry result, and `compileInputs` for an LPP 1.7+ entry result | `{ documents, projectRoot?, locale?, acceptedArtifactFormats? }` or `{ entry, projectRoot?, locale?, acceptedArtifactFormats? }` (`acceptedArtifactFormats`: LPP 1.4+) | `{ diagnostics: [{ uri, version, diagnostics }], sourceIdentity?, compileInputs?, artifact }` |
 | `lpp/reconstruct` | `reconstruct` | `{ artifact }` | `{ source, uri? }` |
 | `lpp/symbols` | `symbols` | `{ documents, projectRoot? }` | `{ documents: [{ uri, version, symbols }] }` |
 | `lpp/definition` | `definition` | `{ document, position }` | `{ locations }` |
