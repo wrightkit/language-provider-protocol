@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/wrightkit/language-provider-protocol/compare/v1.8.0...v1.8.1) (2026-11-01)
+
+
+### Performance Improvements
+
+* **ci:** cancel superseded PR runs and skip jobs for documentation-only changes ([#108](https://github.com/wrightkit/language-provider-protocol/issues/108)) ([79bb481](https://github.com/wrightkit/language-provider-protocol/commit/79bb4817ebc0df36d207e57a0d6a8e436108f52d))
+
 ## [1.8.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.7.1...v1.8.0) (2026-10-28)
 
 
