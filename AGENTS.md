@@ -9,9 +9,6 @@ the neutral, versioned wire contract between Wright-style tooling clients and
 long-running language provider processes, plus the machine-testable conformance
 suite that keeps that contract honest.
 
-This file is a concise routing and engineering guide, not a project status page
-or a duplicate of the specification.
-
 ## Repository ownership
 
 Before implementing a task, identify the semantic and product owner:
@@ -30,9 +27,6 @@ Before implementing a task, identify the semantic and product owner:
   Workshop artifact format. LPP only defines the artifact *envelope*; artifact
   format semantics are not frozen in this repository without concrete
   evidence.
-
-Do not move responsibilities across repositories merely to simplify an
-implementation.
 
 ## Hard architecture constraints
 
@@ -87,8 +81,6 @@ conformance; state the evidence level and boundary.
   conformance suite. Its language (`x-demo-lang`) must remain deliberately
   unlike OPY and DEL so that accidental two-language assumptions in the
   protocol surface as conformance failures.
-* **Client-side work**: belongs in `wrightkit/wright`,
-  consuming this repository's contract, never redefining it.
 
 ## Delivery
 
