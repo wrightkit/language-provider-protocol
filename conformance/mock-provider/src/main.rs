@@ -37,8 +37,6 @@ fn main() {
                 }
                 server.handle_message(message)
             }
-            // A line that is not valid UTF-8 cannot be valid JSON: -32700 and
-            // the session continues.
             Err(_) => rpc::std_error(Value::Null, -32700, "Parse error"),
         };
         if write_response(&mut out, &response).is_err() {
