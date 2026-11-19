@@ -246,7 +246,9 @@ impl Loader<'_> {
         let inputs = documents
             .keys()
             .cloned()
-            .chain(declared_paths(&traversed).filter_map(|path| path_to_file_uri(&path)))
+            .chain(
+                declared_paths_and_symlinks(&traversed).filter_map(|path| path_to_file_uri(&path)),
+            )
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect();
@@ -260,10 +262,7 @@ impl Loader<'_> {
     }
 }
 
-/// Each traversed path plus every symbolic link followed while resolving it,
-/// including links in a chain and linked directory components, so a
-/// retargeted link shows up as a changed declared input.
-fn declared_paths(traversed: &[PathBuf]) -> impl Iterator<Item = PathBuf> + '_ {
+fn declared_paths_and_symlinks(traversed: &[PathBuf]) -> impl Iterator<Item = PathBuf> + '_ {
     traversed.iter().flat_map(|path| {
         let mut declared = vec![path.clone()];
         let mut hops = 0;

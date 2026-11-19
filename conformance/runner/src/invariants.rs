@@ -1,7 +1,3 @@
-//! Wire invariants checked on every actual response, independent of what a
-//! fixture expects, because a fixture with provider-supplied capabilities
-//! cannot know which optional fields the provider must or must not return.
-
 use serde_json::Value;
 
 #[derive(Default)]
