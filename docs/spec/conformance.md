@@ -22,8 +22,9 @@ contract:
 * `conformance/runner/`: a runner that replays fixtures against any provider
   binary and compares responses. It also rejects any `lpp/compile` result
   that violates the `compileInputs` rules of
-  [Section 10.2](analysis-and-compilation.md#102-result), whatever the
-  fixture expects.
+  [Section 10.2](analysis-and-compilation.md#102-result), and any
+  `lpp/lookup` result that violates the `description` and `aliases` rules of
+  [Section 21.2](name-lookup.md#212-result), whatever the fixture expects.
 * `conformance/mock-provider/`: the reference provider for the demonstration
   language `x-demo-lang` (a puzzle/equation DSL). The mock is
   spawnable as a stdio binary so client-side integration can use it

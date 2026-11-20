@@ -109,6 +109,9 @@ clients MUST NOT parse `message`.
   a version-gated field only in a session that negotiated the version defining
   it. A client MUST NOT depend on any other field the provider did not
   advertise via capabilities.
+* A result field that the spec defines only for a later version than the
+  negotiated one, such as `description` and `aliases` on `lpp/lookup` entries
+  (LPP 1.8), is never sent by the provider in that session.
 * Ignoring unknown fields applies to fields the spec does not define at all.
   A field that the spec defines but that the receiving method's `params`
   schema does not include — for example `entry` on `lpp/symbols`, or
