@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/wrightkit/language-provider-protocol/compare/v1.8.1...v1.9.0) (2026-11-20)
+
+
+### Features
+
+* **spec:** add description and aliases to lookup entries ([#114](https://github.com/wrightkit/language-provider-protocol/issues/114)) ([03e916f](https://github.com/wrightkit/language-provider-protocol/commit/03e916ff18094fefce1406fa1d98615369665422)), closes [#113](https://github.com/wrightkit/language-provider-protocol/issues/113)
+
 ## [1.8.1](https://github.com/wrightkit/language-provider-protocol/compare/v1.8.0...v1.8.1) (2026-11-01)
 
 
