@@ -17,7 +17,8 @@ contract:
   file-entry revision, its LPP 1.2 directory-target revision, its LPP 1.3
   source-identity revision, its LPP 1.4 artifact-format negotiation
   revision, its LPP 1.5 name-lookup revision, its LPP 1.6
-  canonical-id-resolution revision, and its LPP 1.7 compile-inputs revision.
+  canonical-id-resolution revision, its LPP 1.7 compile-inputs revision, and its
+  LPP 1.8 lookup description and alias revision.
 * `conformance/runner/`: a runner that replays fixtures against any provider
   binary and compares responses. It also rejects any `lpp/compile` result
   that violates the `compileInputs` rules of
@@ -91,7 +92,7 @@ Methods:
 | `lpp/references` | `references` | `{ document, position, includeDeclaration }` | `{ locations }` |
 | `lpp/rename` | `rename` | `{ documents, positionDocumentUri, position, newName, projectRoot? }` | `{ edits: [{ documentUri, version, textEdits }] }` |
 | `lpp/validateEdits` | `editValidation` | `{ document, edits }` | `{ valid, version, reason?, failingEditIndex? }` |
-| `lpp/lookup` | `lookup` (LPP 1.5) | `{ languageId, query?, kind?, within?, locale?, limit? }` | `{ entries: [{ identity, kind, spelling, displayName, callable?, enum?, parameter?, setting? }] }` |
+| `lpp/lookup` | `lookup` (LPP 1.5) | `{ languageId, query?, kind?, within?, locale?, limit? }` | `{ entries: [{ identity, kind, spelling, displayName, description?, aliases?, callable?, enum?, parameter?, setting? }] }` (`description`, `aliases`: LPP 1.8+) |
 | `lpp/resolveIds` | `resolveIds` (LPP 1.6) | `{ languageId, calls?, enums? }` | `{ calls, enums }` |
 
 Types: `Position`, `Range`, `TextEdit`, `Document`, `DocumentSet`, `ProjectEntry`,

@@ -32,7 +32,7 @@ fn declared_capability_ids(root: &Value) -> Option<&'static [&'static str]> {
         "1.3" | "1.4" => 10,
         "1.5" => 11,
         "1.6" => 12,
-        "1.7" => 13,
+        "1.7" | "1.8" => 13,
         _ => return None,
     };
     Some(&CAPABILITY_IDS[..count])

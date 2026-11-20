@@ -2,7 +2,7 @@
 
 [← LPP v1 specification index](README.md)
 
-## 21. lpp/lookup (LPP 1.5)
+## 21. lpp/lookup (LPP 1.5; descriptions and aliases LPP 1.8)
 
 Resolve a free-text name guess to the provider's spellings and signature facts
 for one of its languages — callables, enum domains and members, settings keys,
@@ -78,11 +78,21 @@ project or any source document.
 | `kind` | string | REQUIRED. A provider-defined entry kind (for example `action`, `value`, `parameter`, `enumMember`, `setting`). LPP does not define a fixed kind vocabulary. |
 | `spelling` | string | REQUIRED. The bare spelling in the requested language: the text the client would write. It is never a rendered signature. |
 | `displayName` | string | REQUIRED. The display name for the requested or fallback locale. |
+| `description` | string | OPTIONAL. LPP 1.8 and later. What the construct does, as plain text without markup, in the requested locale. A locale the provider cannot serve falls back as for `displayName`. A provider that has no description for an entry omits the field. On a parameter entry it describes the parameter. |
+| `aliases` | array of string | OPTIONAL. LPP 1.8 and later. The other spellings the language accepts as source for the same construct. It is non-empty when present and never contains `spelling`. `spelling` stays the canonical spelling; the provider lists only spellings the language accepts. The order is stable. |
 | `callable` | object | OPTIONAL. Callable facts; see [Section 21.4](#214-callable-facts). Present when the entry is invocable. |
 | `enum` | object | OPTIONAL. An enum domain the entry defines or a parameter/setting accepts: `{ "domain": string, "members": [string] }`. `domain` is the domain entry's `identity` and is a valid `within` value for selector kind `"enum"`; `members` is the complete member spelling list of that domain. |
 | `parameter` | object | OPTIONAL. On entries that describe a callable's parameter, the parameter facts `{ "type": string, "required": boolean, "default"?: scalar, "enum"?: enum domain }`; the parameter's `name` is the entry `spelling`. |
 | `setting` | object | OPTIONAL. On entries that describe a settings key, the value form the setting accepts: `{ "type": string, "minimum"?: number, "maximum"?: number, "enum"?: enum domain }`. `type` is a provider-defined value-domain name. |
 
+* A provider MUST NOT send `description` or `aliases` in a session that
+  negotiated a version before 1.8, and a client MUST NOT depend on either field
+  in such a session. In a 1.8 session both are optional, so a client treats an
+  absent field as "not provided". Neither field adds a capability id.
+* `aliases` is a fact about the entry, not about the query. A client that wants
+  to know whether its query was an alias compares the query with `spelling` and
+  `aliases`. A provider MAY match a query against an alias when it ranks
+  entries; ranking is not part of the wire contract.
 * `entries` is the ranked result. Ranking and match thresholds are
   provider-defined and are not part of the wire contract.
 * Results MUST be deterministic: the same request against the same provider
@@ -136,6 +146,9 @@ MUST be rejected with `-32602`. `value` is a REQUIRED string.
 
 * `parameters`: REQUIRED and ordered. Each parameter carries:
   * `name`: REQUIRED string.
+  * `description`: OPTIONAL string. LPP 1.8 and later. What the parameter
+    means, with the rules of `description` in
+    [Section 21.2](#212-result).
   * `type`: REQUIRED provider-defined type name.
   * `required`: REQUIRED boolean.
   * `default`: OPTIONAL JSON scalar (string, number, boolean, or `null`) — the
