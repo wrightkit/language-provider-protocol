@@ -91,8 +91,9 @@ clients MUST NOT parse `message`.
   LPP 1.4 adds `acceptedArtifactFormats` artifact format negotiation to
   `lpp/compile`. LPP 1.5 adds the optional `lookup` capability and the
   `lpp/lookup` method, LPP 1.6 adds the optional `resolveIds`
-  capability and the `lpp/resolveIds` method, and LPP 1.7 adds the optional
-  `compileInputs` capability for entry-based compile results.
+  capability and the `lpp/resolveIds` method, LPP 1.7 adds the optional
+  `compileInputs` capability for entry-based compile results, and LPP 1.8 adds
+  the optional `description` and `aliases` fields to `lpp/lookup` entries.
 * `MAJOR` changes are breaking: message shapes, method semantics, or framing
   may change. A breaking change always produces a new MAJOR version, and
   clients and providers speaking different MAJOR versions are never expected
@@ -108,6 +109,9 @@ clients MUST NOT parse `message`.
   a version-gated field only in a session that negotiated the version defining
   it. A client MUST NOT depend on any other field the provider did not
   advertise via capabilities.
+* A result field that the spec defines only for a later version than the
+  negotiated one, such as `description` and `aliases` on `lpp/lookup` entries
+  (LPP 1.8), is never sent by the provider in that session.
 * Ignoring unknown fields applies to fields the spec does not define at all.
   A field that the spec defines but that the receiving method's `params`
   schema does not include — for example `entry` on `lpp/symbols`, or
@@ -129,7 +133,8 @@ clients MUST NOT parse `message`.
   later and require `lookup: true` in the result capabilities. Clients that
   need canonical id resolution MUST request `"1.6"` or later and require
   `resolveIds: true`. Clients that need the compile inputs MUST request
-  `"1.7"` or later and require `compileInputs: true`.
+  `"1.7"` or later and require `compileInputs: true`. Clients that use lookup
+  descriptions or aliases MUST request `"1.8"` or later.
 * A provider MUST list in `supportedProtocolVersions` exactly the versions
   it supports: every listed version MUST be negotiable, and no supported
   version may be omitted.

@@ -3,6 +3,7 @@ use serde_json::Value;
 #[derive(Default)]
 pub(crate) struct Invariants {
     compile_inputs: bool,
+    minor: Option<u32>,
 }
 
 impl Invariants {
@@ -17,6 +18,7 @@ impl Invariants {
                     .and_then(Value::as_str)
                     .and_then(|version| version.strip_prefix("1."))
                     .and_then(|minor| minor.parse::<u32>().ok());
+                self.minor = minor;
                 self.compile_inputs = minor.is_some_and(|minor| minor >= 7)
                     && result.pointer("/capabilities/compileInputs") == Some(&Value::Bool(true));
                 Ok(())
@@ -25,9 +27,57 @@ impl Invariants {
                 let entry_based = request.pointer("/params/entry").is_some();
                 check_compile_inputs(self.compile_inputs, entry_based, result)
             }
+            Some("lpp/lookup") => check_lookup(self.minor.is_some_and(|minor| minor >= 8), result),
             _ => Ok(()),
         }
     }
+}
+
+fn check_lookup(negotiated: bool, result: &Value) -> Result<(), String> {
+    let entries = result.get("entries").and_then(Value::as_array);
+    for entry in entries.into_iter().flatten() {
+        let described = entry.get("description").into_iter().chain(
+            entry
+                .pointer("/callable/parameters")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|parameter| parameter.get("description")),
+        );
+        for description in described {
+            if !negotiated {
+                return Err(
+                    "lookup result includes 'description' in a session before LPP 1.8".into(),
+                );
+            }
+            if description.as_str().is_none_or(str::is_empty) {
+                return Err("lookup 'description' must be a non-empty string".into());
+            }
+        }
+        let Some(aliases) = entry.get("aliases") else {
+            continue;
+        };
+        if !negotiated {
+            return Err("lookup result includes 'aliases' in a session before LPP 1.8".into());
+        }
+        let aliases = aliases
+            .as_array()
+            .and_then(|aliases| {
+                aliases
+                    .iter()
+                    .map(Value::as_str)
+                    .collect::<Option<Vec<_>>>()
+            })
+            .filter(|aliases| !aliases.is_empty() && aliases.iter().all(|alias| !alias.is_empty()))
+            .ok_or("lookup 'aliases' must be a non-empty array of non-empty strings")?;
+        if aliases
+            .iter()
+            .any(|alias| Some(*alias) == entry["spelling"].as_str())
+        {
+            return Err("lookup 'aliases' must not contain the entry's 'spelling'".into());
+        }
+    }
+    Ok(())
 }
 
 fn check_compile_inputs(negotiated: bool, entry_based: bool, result: &Value) -> Result<(), String> {
@@ -84,6 +134,59 @@ mod tests {
 
     fn with_inputs(inputs: Value) -> Value {
         json!({"diagnostics": [], "artifact": null, "compileInputs": inputs})
+    }
+
+    fn lookup(invariants: &mut Invariants, entry: Value) -> Result<(), String> {
+        invariants.check(
+            &json!({"method": "lpp/lookup"}),
+            &json!({"result": {"entries": [entry]}}),
+        )
+    }
+
+    fn entry_with(extra: Value) -> Value {
+        let mut entry = json!({"identity": "i", "kind": "k", "spelling": "s", "displayName": "d"});
+        entry
+            .as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        entry
+    }
+
+    #[test]
+    fn lookup_accepts_description_and_aliases_in_1_8() {
+        let mut invariants = initialize("1.8", false);
+        let entry = entry_with(json!({
+            "description": "d", "aliases": ["a"],
+            "callable": {"parameters": [{"name": "p", "type": "t", "required": true, "description": "x"}]}
+        }));
+        assert_eq!(lookup(&mut invariants, entry), Ok(()));
+    }
+
+    #[test]
+    fn lookup_rejects_the_fields_before_1_8() {
+        let mut invariants = initialize("1.7", false);
+        assert!(lookup(&mut invariants, entry_with(json!({"description": "d"}))).is_err());
+        assert!(lookup(&mut invariants, entry_with(json!({"aliases": ["a"]}))).is_err());
+        let parameter = json!({"callable": {"parameters": [{"name": "p", "type": "t", "required": true, "description": "x"}]}});
+        assert!(lookup(&mut invariants, entry_with(parameter)).is_err());
+    }
+
+    #[test]
+    fn lookup_rejects_malformed_description_and_aliases() {
+        let mut invariants = initialize("1.8", false);
+        for bad in [
+            json!({"description": ""}),
+            json!({"description": 3}),
+            json!({"aliases": []}),
+            json!({"aliases": [""]}),
+            json!({"aliases": ["a", 1]}),
+            json!({"aliases": ["s"]}),
+        ] {
+            assert!(
+                lookup(&mut invariants, entry_with(bad.clone())).is_err(),
+                "{bad}"
+            );
+        }
     }
 
     #[test]

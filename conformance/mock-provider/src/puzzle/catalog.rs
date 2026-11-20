@@ -27,6 +27,24 @@ pub(crate) fn lookup(
     ))
 }
 
+/// `description` and `aliases` exist only in LPP 1.8 and later sessions.
+pub(crate) fn strip_lookup_extras(entry: &mut Value) {
+    if let Some(entry) = entry.as_object_mut() {
+        entry.remove("description");
+        entry.remove("aliases");
+        if let Some(parameters) = entry
+            .get_mut("callable")
+            .and_then(|callable| callable["parameters"].as_array_mut())
+        {
+            for parameter in parameters {
+                if let Some(parameter) = parameter.as_object_mut() {
+                    parameter.remove("description");
+                }
+            }
+        }
+    }
+}
+
 fn rank(entries: Vec<Value>, query: &str, kind: Option<&str>, limit: usize) -> Vec<Value> {
     let mut scored: Vec<(u8, Value)> = entries
         .into_iter()
@@ -42,8 +60,14 @@ fn score(entry: &Value, query: &str) -> Option<u8> {
     if query.is_empty() {
         return Some(0);
     }
+    let aliases = entry["aliases"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|alias| alias.as_str());
     [entry["spelling"].as_str(), entry["displayName"].as_str()]
         .into_iter()
+        .chain(aliases)
         .flatten()
         .map(str::to_lowercase)
         .filter_map(|text| {
@@ -67,7 +91,7 @@ fn catalog() -> Vec<Value> {
         keyword("solution"),
         operator("add", "+"),
         operator("subtract", "-"),
-        operator("multiply", "*"),
+        with_aliases(operator("multiply", "*"), &["product"]),
         operator("divide", "/"),
         operator_domain(),
         setting("target"),
@@ -90,13 +114,24 @@ fn operator(name: &str, symbol: &str) -> Value {
         "kind": "operator",
         "spelling": symbol,
         "displayName": name,
+        "description": format!("The {name} operator applies {symbol} to the receiver and the argument."),
         "callable": {
             "receiver": "integer",
             "parameters": [
-                { "name": "arg", "type": "integer", "required": true }
+                {
+                    "name": "arg",
+                    "description": "The right-hand operand.",
+                    "type": "integer",
+                    "required": true
+                }
             ]
         }
     })
+}
+
+fn with_aliases(mut entry: Value, aliases: &[&str]) -> Value {
+    entry["aliases"] = json!(aliases);
+    entry
 }
 
 fn operator_domain() -> Value {
@@ -132,17 +167,20 @@ fn callable_params(identity: &str) -> Option<Vec<Value>> {
             .iter()
             .map(|p| {
                 let mut facts = p.clone();
-                facts
-                    .as_object_mut()
-                    .expect("parameter object")
-                    .remove("name");
-                json!({
+                let facts = facts.as_object_mut().expect("parameter object");
+                facts.remove("name");
+                let description = facts.remove("description");
+                let mut entry = json!({
                     "identity": format!("{identity}/{}", p["name"].as_str().unwrap_or("parameter")),
                     "kind": "parameter",
                     "spelling": p["name"],
                     "displayName": p["name"],
                     "parameter": facts,
-                })
+                });
+                if let Some(description) = description {
+                    entry["description"] = description;
+                }
+                entry
             })
             .collect(),
     )

@@ -13,7 +13,7 @@ pub(crate) use artifact::{
     ARTIFACT_FORMAT, COMPILE_ARTIFACT_FORMATS, SUMMARY_ARTIFACT_FORMAT, compile_artifact,
     reconstruct_source, summary_artifact,
 };
-pub(crate) use catalog::{LookupScope, lookup};
+pub(crate) use catalog::{LookupScope, lookup, strip_lookup_extras};
 pub(crate) use edits::{EditValidation, validate_edits};
 pub(crate) use parse::parse_document;
 pub(crate) use spellings::resolve_ids;

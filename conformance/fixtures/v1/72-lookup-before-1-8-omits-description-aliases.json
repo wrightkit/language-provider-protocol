@@ -1,0 +1,76 @@
+{
+  "name": "lookup-before-1-8-omits-description-aliases",
+  "description": "A session that negotiated a version before LPP 1.8 never carries description or aliases, even for an entry the provider holds them for.",
+  "scope": "semantics",
+  "session": "1.7",
+  "providerArgs": [
+    "--protocol-version",
+    "1.7"
+  ],
+  "steps": [
+    {
+      "request": {
+        "id": 2,
+        "method": "lpp/lookup",
+        "params": {
+          "languageId": "x-demo-lang",
+          "query": "multiply"
+        }
+      },
+      "expectResponse": {
+        "result": {
+          "entries": [
+            {
+              "identity": "x-demo:operator/multiply",
+              "kind": "operator",
+              "spelling": "*",
+              "displayName": "multiply",
+              "callable": {
+                "receiver": "integer",
+                "parameters": [
+                  {
+                    "name": "arg",
+                    "type": "integer",
+                    "required": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "id": 3,
+        "method": "lpp/lookup",
+        "params": {
+          "languageId": "x-demo-lang",
+          "query": "product"
+        }
+      },
+      "expectResponse": {
+        "result": {
+          "entries": [
+            {
+              "identity": "x-demo:operator/multiply",
+              "kind": "operator",
+              "spelling": "*",
+              "displayName": "multiply",
+              "callable": {
+                "receiver": "integer",
+                "parameters": [
+                  {
+                    "name": "arg",
+                    "type": "integer",
+                    "required": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

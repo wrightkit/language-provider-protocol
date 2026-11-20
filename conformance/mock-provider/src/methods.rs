@@ -351,6 +351,10 @@ impl Server {
                 "within selector names no known scope",
             )
         })?;
+        let mut entries = entries;
+        if !self.since(8) {
+            entries.iter_mut().for_each(puzzle::strip_lookup_extras);
+        }
         Ok(json!({ "entries": entries }))
     }
 
